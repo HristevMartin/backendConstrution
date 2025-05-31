@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo
+    container_name: my-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - my-mongo-data:/data/db
+
+volumes:
+  my-mongo-data:
+    external: true
