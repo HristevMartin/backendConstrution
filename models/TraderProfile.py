@@ -7,6 +7,7 @@ class TraderProfile(db.Document):
     fullName = db.StringField(required=False, null=True)
     company = db.StringField(required=False, null=True)
     bio = db.StringField(required=False, null=True)
+    city = db.StringField(required=False, null=True)
     yearsExperience = db.StringField(required=False, null=True)
     specialties = db.StringField(required=False, null=True)
     selectedTrades = db.StringField(required=False, null=True)

@@ -5,6 +5,8 @@ import json
 import os
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from util.gcs_handler import GCSHandler
+from bson import ObjectId
 
 class TraderForm(Resource):
     def post(self):
@@ -17,45 +19,38 @@ class TraderForm(Resource):
         data['specialties'] = request.form.get('specialties', '')
         data['userId'] = request.form.get('userId', '')
         data['createdDate'] = datetime.now()
+        data['city'] = request.form.get('city', '')
         data['userId'] = request.form.get('userId', '')
         data['selectedTrades'] = request.form.get('selectedTrade', '')
         print('show me the selected trades', data['selectedTrades'])
         
-        
-        # Handle file upload
+        # Handle file upload using Google Cloud Storage
         profile_image = request.files.get('profileImage')
         if profile_image and profile_image.filename != '':
             try:
-                # Secure the filename and save the file
-                filename = secure_filename(profile_image.filename)
+                # Initialize GCS handler
+                gcs_handler = GCSHandler()
                 
-                # Create nested folder structure based on user ID
                 user_id = data.get('userId', 'unknown_user')
-                # Use user ID as folder name (already secure and unique)
-                folder_name = str(user_id) if user_id else 'unknown_user'
+                print(f'Uploading profile image for user: {user_id}')
                 
-                # Create the upload path with nested folder structure
-                upload_folder = os.path.join('uploads', 'profile_images', folder_name)
-                print(f'Creating upload folder: {upload_folder}')
+                # Upload file to GCS
+                file_url = gcs_handler.upload_profile_image(
+                    file=profile_image,
+                    user_id=user_id,
+                    file_type='profile_image_pictures'
+                )
                 
-                # Create directories if they don't exist
-                os.makedirs(upload_folder, exist_ok=True)
-                print(f'Upload folder created successfully: {upload_folder}')
-                
-                # Full file path
-                file_path = os.path.join(upload_folder, filename)
-                print(f'Saving file to: {file_path}')
-                
-                # Save the file
-                profile_image.save(file_path)
-                print(f'File saved successfully: {file_path}')
-                
-                # Save the file path to database
-                data['profileImage'] = file_path
-                print(f'Profile image path saved to data: {file_path}')
+                if file_url:
+                    # Save the GCS URL to database
+                    data['profileImage'] = file_url
+                    print(f'Profile image uploaded successfully to GCS: {file_url}')
+                else:
+                    data['profileImage'] = None
+                    print('Failed to upload profile image to GCS')
                 
             except Exception as e:
-                print(f'Error handling file upload: {str(e)}')
+                print(f'Error handling file upload to GCS: {str(e)}')
                 data['profileImage'] = None
         else:
             data['profileImage'] = None
@@ -66,3 +61,48 @@ class TraderForm(Resource):
         TraderProfile(**data).save()
         return {"message": "Trader form submitted successfully"}, 200
 
+class GetProfileByID(Resource):
+    def get(self, profile_id):
+        try:
+            print(f'Looking for profile with ID/UserID: {profile_id}')
+            
+            # Try to find by userId first (string field)
+            profile = TraderProfile.objects(userId=profile_id).first()
+            
+            # If not found by userId, try by MongoDB ObjectId
+            if not profile:
+                try:
+                    profile = TraderProfile.objects(id=ObjectId(profile_id)).first()
+                except:
+                    pass
+            
+            if not profile:
+                return {"error": "Profile not found"}, 404
+            
+            print('Profile found, converting to dict...')
+            
+            # Convert to dictionary manually to handle datetime serialization
+            profile_data = {
+                'id': str(profile.id),
+                'fullName': profile.fullName,
+                'company': profile.company,
+                'bio': profile.bio,
+                'city': profile.city,
+                'yearsExperience': profile.yearsExperience,
+                'specialties': profile.specialties,
+                'selectedTrades': profile.selectedTrades,
+                'profileImage': profile.profileImage,
+                'createdDate': profile.createdDate.isoformat() if profile.createdDate else None,
+                'isActive': profile.isActive,
+                'isDeleted': profile.isDeleted,
+                'userId': profile.userId
+            }
+            
+            print('Profile data converted successfully')
+            return profile_data, 200
+            
+        except Exception as e:
+            print(f'Error in GetProfileByID: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return {"error": f"Failed to get profile: {str(e)}"}, 500
