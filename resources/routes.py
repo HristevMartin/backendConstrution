@@ -14,6 +14,7 @@ from resources.StaticFiles import ServeUploadedFile
 from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
 from resources.TraderProject import GetAllProfiles
+from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
 
 routes = [
     (Register, "/travel/register"),
@@ -29,5 +30,9 @@ routes = [
     (GetUser, "/travel/get-user/<user_id>"),
     (GetProjectServices, "/travel/get-project-services"),
     (GetSpecificServices, "/travel/get-specific-services/<trade>"),
+    (SaveComment, "/travel/save-comment"),
+    (GetCommentsByProjectId, "/travel/get-comments/<project_id>"),
+    (DeleteComment, "/travel/delete-comment/<comment_id>"),
+    (UpdateComment, "/travel/update-comment/<comment_id>"),
     (ServeUploadedFile, "/uploads/<folder>/<user_id>/<filename>")
 ]

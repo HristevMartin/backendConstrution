@@ -6,7 +6,7 @@ class Project(Document):
     title = StringField(required=True, max_length=200)
     description = StringField(required=False, null=True, max_length=2000)
     projectDate = StringField(required=False, null=True, max_length=10) 
-    expertise = ListField(StringField(max_length=100), required=False, default=list)
+    specifications = ListField(StringField(max_length=100), required=False, default=list)
     projectImages = ListField(StringField(max_length=500), required=False, default=list)
     created_at = DateTimeField(default=datetime.utcnow)
     updated_at = DateTimeField(default=datetime.utcnow)
@@ -17,7 +17,7 @@ class Project(Document):
         'indexes': [
             'title',
             'projectDate',
-            'expertise',
+            'specifications',
             'created_at'
         ]
     }

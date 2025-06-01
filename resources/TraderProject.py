@@ -21,13 +21,16 @@ class SaveProject(Resource):
             data['projectDate'] = request.form.get('projectDate', '').strip()
             data['userId'] = request.form.get('userId', '').strip()
             
-            # Parse expertise from JSON string
-            expertise_str = request.form.get('expertise', '[]')
+            # Parse specifications from JSON string (renamed from expertise to match frontend)
+            specifications_str = request.form.get('specifications', '[]')
+            print(f"Raw specifications received: {specifications_str}")
+            
             try:
-                data['expertise'] = json.loads(expertise_str)
+                data['specifications'] = json.loads(specifications_str)
+                print(f"Parsed specifications: {data['specifications']}")
             except json.JSONDecodeError as e:
-                print(f"Error parsing expertise JSON: {e}")
-                data['expertise'] = []
+                print(f"Error parsing specifications JSON: {e}")
+                data['specifications'] = []
             
             # Validate required fields
             if not data['title']:
@@ -75,7 +78,7 @@ class SaveProject(Resource):
                 'title': data['title'],
                 'description': data['description'][:50] + '...' if len(data['description']) > 50 else data['description'],
                 'projectDate': data['projectDate'],
-                'expertise': data['expertise'],
+                'specifications': data['specifications'],
                 'image_count': len(image_urls)
             })
             
