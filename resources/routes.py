@@ -13,6 +13,7 @@ from resources.GetProjectServices import GetProjectServices, GetSpecificServices
 from resources.StaticFiles import ServeUploadedFile
 from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
+from resources.TraderProject import GetAllProfiles
 
 routes = [
     (Register, "/travel/register"),
@@ -20,6 +21,7 @@ routes = [
     (Logout, "/travel/logout"),
     (Test, "/travel/some"),
     (TraderForm, "/travel/save-profile"),
+    (GetAllProfiles, "/travel/get-all-profiles"),
     (UserTrack, "/travel/save-user-track"),
     (SaveProject, "/travel/save-project"),
     (GetProjectByID, "/travel/get-project-by-id/<project_id>"),

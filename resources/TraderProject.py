@@ -6,7 +6,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from util.gcs_handler import GCSHandler
-
+from models.TraderProfile import TraderProfile
 class SaveProject(Resource):
     def post(self):
         try:
@@ -104,3 +104,31 @@ class GetProjectByID(Resource):
             return project_dict, 200
         except Exception as e:
             return {"error": f"Failed to get project: {str(e)}"}, 500
+        
+
+class GetAllProfiles(Resource):
+    def get(self):
+        try:
+            profiles = TraderProfile.objects()
+            profile_list = []
+            for profile in profiles:
+                # Convert each profile to a dictionary with proper serialization
+                profile_data = {
+                    'id': str(profile.id),
+                    'fullName': profile.fullName,
+                    'company': profile.company,
+                    'bio': profile.bio,
+                    'city': profile.city,
+                    'yearsExperience': profile.yearsExperience,
+                    'specialties': profile.specialties,
+                    'selectedTrades': profile.selectedTrades,
+                    'profileImage': profile.profileImage,
+                    'createdDate': profile.createdDate.isoformat() if profile.createdDate else None,
+                    'isActive': profile.isActive,
+                    'isDeleted': profile.isDeleted,
+                    'userId': profile.userId
+                }
+                profile_list.append(profile_data)
+            return {"profiles": profile_list}, 200
+        except Exception as e:
+            return {"error": f"Failed to get all profiles: {str(e)}"}, 500
