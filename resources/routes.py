@@ -7,8 +7,8 @@ from resources.auth import (
 
 from resources.TraderForm import TraderForm
 from resources.UserTrack import UserTrack
-from resources.TraderProject import SaveProject
-from resources.User import GetUser
+from resources.TraderProject import SaveProject, UpdateProject
+from resources.User import GetUser, SaveUserRole
 from resources.GetProjectServices import GetProjectServices, GetSpecificServices
 from resources.StaticFiles import ServeUploadedFile
 from resources.TraderProject import GetProjectByID
@@ -25,6 +25,7 @@ routes = [
     (GetAllProfiles, "/travel/get-all-profiles"),
     (UserTrack, "/travel/save-user-track"),
     (SaveProject, "/travel/save-project"),
+    (UpdateProject, "/travel/update-project/<project_id>"),
     (GetProjectByID, "/travel/get-project-by-id/<project_id>"),
     (GetProfileByID, "/travel/get-profile-by-id/<profile_id>"),
     (GetUser, "/travel/get-user/<user_id>"),
@@ -34,5 +35,6 @@ routes = [
     (GetCommentsByProjectId, "/travel/get-comments/<project_id>"),
     (DeleteComment, "/travel/delete-comment/<comment_id>"),
     (UpdateComment, "/travel/update-comment/<comment_id>"),
-    (ServeUploadedFile, "/uploads/<folder>/<user_id>/<filename>")
+    (ServeUploadedFile, "/uploads/<folder>/<user_id>/<filename>"),
+    (SaveUserRole, "/travel/role-selected")
 ]

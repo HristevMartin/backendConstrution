@@ -23,7 +23,7 @@ variable "region" {
 variable "backend_image_name" {
   description = "Backend container image to deploy to Cloud Run"
   type        = string
-  default     = "gcr.io/stalwart-elixir-458022-d5/ub-travel-services-run-last:latest"
+  default     = "gcr.io/stalwart-elixir-458022-d5/demo-construction-backend:latest"
 }
 
 

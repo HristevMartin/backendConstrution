@@ -15,14 +15,16 @@ from util.decorators import validate_schema, permission_required
 class Register(Resource):
     # @validate_schema(TravelRegisterRequestSchema)
     def post(self):
+        print('in here')
         result = User().check_and_create_user_data(request)
+        print('blqblqblq', result)
         if 'message' in result:
             return result, 400
         else:
             # Create and save the new user
             new_user = Users(**result)
             new_user.save()
-            
+            print('new_user', new_user)
             # Generate token for automatic login
             user_id = str(new_user.id)
             user_role = result["role"][0] if result["role"] else 'USER'
