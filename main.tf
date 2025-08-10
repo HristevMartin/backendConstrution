@@ -52,7 +52,7 @@ resource "google_project_service" "cloud_run_api" {
   disable_on_destroy = false
 }
 
-# Backend Cloud Run service
+# Backend Cloud Run services
 resource "google_cloud_run_service" "backend" {
   name     = "ub-travel-services-backend"
   location = var.region
