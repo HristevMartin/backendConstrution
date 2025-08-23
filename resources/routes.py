@@ -15,6 +15,7 @@ from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
 from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
+from resources.ClientProjects import ClientProjects, GetClientProject, GetClientProjectsByEmail, GetAllClientProjects
 
 routes = [
     (Register, "/travel/register"),
@@ -36,5 +37,7 @@ routes = [
     (DeleteComment, "/travel/delete-comment/<comment_id>"),
     (UpdateComment, "/travel/update-comment/<comment_id>"),
     (ServeUploadedFile, "/uploads/<folder>/<user_id>/<filename>"),
-    (SaveUserRole, "/travel/role-selected")
+    (SaveUserRole, "/travel/role-selected"),
+    ##UI revamp endpoints
+    (ClientProjects, "/travel/save-client-project"),
 ]

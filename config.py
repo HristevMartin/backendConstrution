@@ -7,7 +7,6 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dasdasdadsdasdasdasdasdas')
     #development
     MONGODB_SETTINGS = {
-    
         'db': os.getenv('MONGO_DB', 'travelDB'),
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': int(os.getenv('DB_PORT', '27017')),
@@ -19,6 +18,6 @@ class Config:
     # }
     
     # # Google Cloud Storage Configuration
-    # GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'profile_images_custom_123123')
-    # GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'stalwart-elixir-458022-d5')
-    # GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', 'C:/Users/hrist/constructionKeys/stalwart-elixir-458022-d5-1a3a6e27ef1c.json')
+    GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'client_images_zoo')
+    GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'pure-zoo-466316-t4')
+    GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', 'C:/Users/hrist/constructionKeys/pure-zoo-466316-t4-b0c8401c6a9d.json')
