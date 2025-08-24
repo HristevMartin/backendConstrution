@@ -158,25 +158,18 @@ class ClientProjects(Resource):
             return {"error": f"Failed to create project: {str(e)}"}, 500
 
     def get(self):
-        """Get all client projects (recent 50)"""
-        try:
-            # Get optional limit parameter
-            limit = request.args.get('limit', 50, type=int)
-            
-            projects = ClientProject.get_recent_projects(limit=limit)
-            projects_list = [project.to_dict() for project in projects]
-            
-            return {
-                "success": True,
-                "projects": projects_list,
-                "count": len(projects_list),
-                "limit": limit
-            }, 200
-            
-        except Exception as e:
-            print(f"Error fetching all projects: {str(e)}")
-            return {"error": f"Failed to fetch projects: {str(e)}"}, 500
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return {"error": "user_id is required"}, 400
         
+        projects = ClientProject.objects(user_id=user_id)
+        projects_list = [project.to_dict() for project in projects]
+        
+        return {
+            "success": True,
+            "projects": projects_list
+        }, 200
+
 
 class GetClientProject(Resource):
     def get(self, project_id):
@@ -375,3 +368,4 @@ class EditClientProject(Resource):
         except Exception as e:
             print(f"Error editing project {project_id}: {str(e)}")
             return {"error": f"Failed to edit project: {str(e)}"}, 500
+
