@@ -20,8 +20,11 @@ class ClientProject(Document):
     # Project details
     job_title = StringField(max_length=200)
     job_description = StringField()
+    location = StringField(max_length=100)
     budget = StringField(max_length=50)
     urgency = StringField(max_length=20, choices=['asap', 'this_week', 'this_month', 'flexible'], null=True)
+    country = StringField(max_length=5)  # Country code like 'BG', 'US', etc.
+    service_category = StringField(max_length=100)
     
     # Image storage
     image_urls = ListField(StringField())  # List of GCS URLs
@@ -46,7 +49,10 @@ class ClientProject(Document):
             'project_id',
             'email',
             'created_at',
-            'status'
+            'status',
+            'location',
+            'country',
+            'service_category'
         ]
     }
     
