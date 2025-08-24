@@ -11,6 +11,9 @@ class ClientProject(Document):
     # Unique project identifier
     project_id = StringField(required=True, unique=True, max_length=36)
     
+    # User identifier (from auth system)
+    user_id = StringField(required=True, max_length=100)
+    
     # User contact information
     first_name = StringField(max_length=100)
     email = StringField(required=True, max_length=255)
@@ -47,6 +50,7 @@ class ClientProject(Document):
         'collection': 'client_projects',
         'indexes': [
             'project_id',
+            'user_id',
             'email',
             'created_at',
             'status',
@@ -67,15 +71,19 @@ class ClientProject(Document):
         Factory method to create a new project from form data
         """
         project = cls(
-            project_id=str(uuid.uuid4()),
+            project_id=form_data.get('project_id', str(uuid.uuid4())),
+            user_id=form_data.get('userId') or form_data.get('user_id', ''),
             first_name=form_data.get('firstName', ''),
             email=form_data.get('email', ''),
             phone=form_data.get('phone', ''),
             contact_method=form_data.get('contactMethod', 'email'),
             job_title=form_data.get('jobTitle', ''),
             job_description=form_data.get('jobDescription', ''),
+            location=form_data.get('location', ''),
             budget=form_data.get('budget', ''),
             urgency=form_data.get('urgency', 'flexible'),
+            country=form_data.get('country', ''),
+            service_category=form_data.get('service_category', ''),
             image_urls=image_urls,
             image_count=len(image_urls),
             gdpr_consent=form_data.get('gdprConsent') == 'true',
@@ -88,14 +96,18 @@ class ClientProject(Document):
         return {
             'id': str(self.id),
             'project_id': self.project_id,
+            'user_id': self.user_id,
             'first_name': self.first_name,
             'email': self.email,
             'phone': self.phone,
             'contact_method': self.contact_method,
             'job_title': self.job_title,
             'job_description': self.job_description,
+            'location': self.location,
             'budget': self.budget,
             'urgency': self.urgency,
+            'country': self.country,
+            'service_category': self.service_category,
             'image_urls': self.image_urls,
             'image_count': self.image_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -113,6 +125,15 @@ class ClientProject(Document):
         except Exception as e:
             print(f"Error fetching project {project_id}: {str(e)}")
             return None
+    
+    @classmethod
+    def get_by_user_id(cls, user_id):
+        """Get all projects by user_id"""
+        try:
+            return cls.objects(user_id=user_id).order_by('-created_at')
+        except Exception as e:
+            print(f"Error fetching projects for user {user_id}: {str(e)}")
+            return []
     
     @classmethod
     def get_by_email(cls, email):

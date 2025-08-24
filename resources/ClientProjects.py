@@ -24,9 +24,17 @@ class ClientProjects(Resource):
             for key in request.form:
                 form_data[key] = request.form[key]
             
+            # Extract userId from form data (sent from frontend auth)
+            user_id = form_data.get('userId')
+            if not user_id:
+                return {"error": "userId is required"}, 400
+            
             # Add project metadata
             form_data['project_id'] = project_id
+            form_data['user_id'] = user_id
             form_data['created_at'] = datetime.utcnow().isoformat()
+            
+            print(f"Using userId: {user_id} for bucket organization")
             
             # Handle multiple file uploads using Google Cloud Storage
             project_images = request.files.getlist('images')
@@ -37,7 +45,7 @@ class ClientProjects(Resource):
                     # Initialize GCS handler
                     gcs_handler = GCSHandler()
                     
-                    print(f'Uploading {len(project_images)} images for project: {project_id}')
+                    print(f'Uploading {len(project_images)} images for user: {user_id}')
                     
                     for image in project_images:
                         if image and image.filename != '':
@@ -46,10 +54,10 @@ class ClientProjects(Resource):
                                 file_extension = image.filename.rsplit('.', 1)[1].lower() if '.' in image.filename else 'jpg'
                                 unique_filename = f"{uuid.uuid4()}.{file_extension}"
                                 
-                                # Use existing upload_profile_image method with project_id as user_id
+                                # Use existing upload_profile_image method with userId from auth
                                 file_url = gcs_handler.upload_profile_image(
                                     file=image,
-                                    user_id=project_id,
+                                    user_id=user_id,
                                     file_type='profile_project_pictures'
                                 )
                                 
@@ -206,6 +214,13 @@ class EditClientProject(Resource):
                     data[key] = request.form[key]
                 print("Form data received:", data)
             
+            # Extract userId from form data (sent from frontend auth)
+            user_id = data.get('userId')
+            if not user_id:
+                return {"error": "userId is required for editing"}, 400
+            
+            print(f"Using userId: {user_id} for bucket organization")
+            
             project = ClientProject.get_by_project_id(project_id)
 
             if not project:
@@ -300,7 +315,7 @@ class EditClientProject(Resource):
                     # Initialize GCS handler
                     gcs_handler = GCSHandler()
                     
-                    print(f'Uploading {len(project_images)} new images for project: {project_id}')
+                    print(f'Uploading {len(project_images)} new images for user: {user_id}')
                     
                     for image in project_images:
                         if image and image.filename != '':
@@ -309,10 +324,10 @@ class EditClientProject(Resource):
                                 file_extension = image.filename.rsplit('.', 1)[1].lower() if '.' in image.filename else 'jpg'
                                 unique_filename = f"{uuid.uuid4()}.{file_extension}"
                                 
-                                # Use existing upload_profile_image method with project_id as user_id
+                                # Use existing upload_profile_image method with userId from auth
                                 file_url = gcs_handler.upload_profile_image(
                                     file=image,
-                                    user_id=project_id,
+                                    user_id=user_id,
                                     file_type='profile_project_pictures'
                                 )
                                 

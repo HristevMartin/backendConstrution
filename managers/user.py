@@ -19,8 +19,6 @@ class User:
         if not email or not password:
             return {"message": "Missing email or password", "status": 400}
 
-        if password != repeat_password:
-            return {"message": "Passwords do not match", "status": 400}
 
         existing_user = Users.objects(email=email).first()
         if existing_user:
