@@ -74,3 +74,10 @@ class SaveUserRole(Resource):
             traceback.print_exc()
             return {"error": f"Failed to save user role: {str(e)}"}, 500
 
+
+class GetUserRole(Resource):
+    def get(self):
+        user_id = request.args.get('userId')
+        user_id_mongo = ObjectId(user_id)
+        user = Users.objects(id=user_id_mongo).first()
+        return user.role, 200

@@ -8,7 +8,7 @@ from resources.auth import (
 from resources.TraderForm import TraderForm
 from resources.UserTrack import UserTrack
 from resources.TraderProject import SaveProject, UpdateProject
-from resources.User import GetUser, SaveUserRole
+from resources.User import GetUser, SaveUserRole, GetUserRole
 from resources.GetProjectServices import GetProjectServices, GetSpecificServices
 from resources.StaticFiles import ServeUploadedFile
 from resources.TraderProject import GetProjectByID
@@ -45,4 +45,5 @@ routes = [
     (GetClientProject, "/travel/get-client-project/<project_id>"),
     (EditClientProject, "/travel/edit-client-project/<project_id>"),
     (SaveTraderProject, "/travel/save-trader-project"),
+    (GetUserRole, "/travel/get-user-role"),
 ]
