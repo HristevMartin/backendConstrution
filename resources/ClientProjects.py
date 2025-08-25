@@ -370,3 +370,45 @@ class EditClientProject(Resource):
             print(f"Error editing project {project_id}: {str(e)}")
             return {"error": f"Failed to edit project: {str(e)}"}, 500
 
+
+class GetAllClientProjects(Resource):
+    def get(self):
+        try:
+            # Extract Bearer token from Authorization header
+            auth_header = request.headers.get('Authorization')
+            print(f"Full Authorization header: {auth_header}")  # Debug the full header
+            
+            if not auth_header:
+                return {"error": "Authorization header is required"}, 401
+            
+            # Check if it's a Bearer token
+            if not auth_header.startswith('Bearer '):
+                return {"error": "Invalid authorization format. Use 'Bearer <token>'"}, 401
+            
+            # Extract the token
+            token = auth_header.split('Bearer ')[1]
+            print(f"Extracted token: '{token}'")  # Debug the extracted token
+            
+            # Check if token is null, undefined, or empty
+            if not token or token == 'null' or token == 'undefined' or token.strip() == '':
+                return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
+            
+            print(f"Token received: {token[:20]}...")  # Log first 20 chars for debugging
+            
+            # TODO: Add token validation logic here
+            # For now, we'll just check if token exists
+            # You can add JWT validation, database lookup, etc.
+            
+            # Get all client projects
+            projects = ClientProject.objects()
+            projects_list = [project.to_dict() for project in projects]
+            
+            return {
+                "success": True,
+                "projects": projects_list,
+                "message": "Client projects retrieved successfully"
+            }, 200
+            
+        except Exception as e:
+            print(f"Error in GetAllClientProjects: {str(e)}")
+            return {"error": f"Failed to retrieve client projects: {str(e)}"}, 500
