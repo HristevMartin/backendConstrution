@@ -15,9 +15,7 @@ from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
 from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
-from resources.ClientProjects import ClientProjects  
-from resources.ClientProjects import GetClientProject
-from resources.ClientProjects import EditClientProject  
+from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject
 from resources.TraderProjects import SaveTraderProject
 
 

@@ -159,6 +159,7 @@ class ClientProjects(Resource):
 
     def get(self):
         user_id = request.args.get('user_id')
+        print(f"User ID: {user_id}")
         if not user_id:
             return {"error": "user_id is required"}, 400
         

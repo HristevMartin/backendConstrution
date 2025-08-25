@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField, ListField
+from mongoengine import Document, StringField, DateTimeField, ListField, BooleanField, IntField
 from datetime import datetime
 import uuid
 
@@ -9,8 +9,22 @@ class TraderProject(Document):
     # User identifier (from auth system)
     userId = StringField(required=True, max_length=100)
     
-    # Basic project information
-    projectTitle = StringField(required=True, max_length=200)
+    # Trader registration information
+    name = StringField(required=True, max_length=200)
+    email = StringField(required=True, max_length=200)
+    phone = StringField(required=False, null=True, max_length=20)
+    primaryTrade = StringField(required=True, max_length=100)
+    otherServices = StringField(required=False, null=True, max_length=1000)  # JSON string
+    city = StringField(required=True, max_length=100)
+    postcode = StringField(required=True, max_length=20)
+    radiusKm = StringField(required=True, max_length=10)
+    experienceYears = StringField(required=False, null=True, max_length=10)
+    certifications = StringField(required=False, null=True, max_length=500)
+    bio = StringField(required=False, null=True, max_length=2000)
+    marketingConsent = StringField(required=True, max_length=10)  # "true" or "false"
+    
+    # Basic project information (if applicable)
+    projectTitle = StringField(required=False, null=True, max_length=200)
     projectDescription = StringField(required=False, null=True, max_length=2000)
     location = StringField(required=False, null=True, max_length=100)
     budget = StringField(required=False, null=True, max_length=50)
@@ -28,6 +42,10 @@ class TraderProject(Document):
         'indexes': [
             'project_id',
             'userId',
+            'email',
+            'primaryTrade',
+            'city',
+            'postcode',
             'projectTitle',
             'location',
             'createdDate',

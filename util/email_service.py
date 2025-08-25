@@ -345,3 +345,264 @@ class EmailService:
         except Exception as e:
             print(f" Error sending admin notification: {str(e)}")
             return False
+
+    def send_trader_registration_email(self, trader_data):
+        """
+        Send confirmation email to trader after registration
+        """
+        if not self.enabled:
+            print("📧 Email service disabled - trader registration email not sent")
+            return False
+            
+        try:
+            # Extract trader information
+            email = trader_data.get('email')
+            name = trader_data.get('name', 'Trader')
+            primary_trade = trader_data.get('primaryTrade', 'Trade')
+            city = trader_data.get('city', 'Location')
+            project_id = trader_data.get('project_id', 'N/A')
+            
+            subject = f"🎉 Welcome to Job Hub - Registration Confirmed!"
+            
+            # HTML email template for trader registration with Job Hub branding
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Welcome to Job Hub - Registration Confirmed</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }}
+                    .logo {{ font-size: 32px; font-weight: bold; margin-bottom: 10px; }}
+                    .tagline {{ font-size: 16px; opacity: 0.9; }}
+                    .content {{ padding: 30px; }}
+                    .welcome-message {{ background: #f8f9ff; padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #667eea; }}
+                    .trader-details {{ background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+                    .next-steps {{ background: #e8f4fd; padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #2196F3; }}
+                    .trust-badges {{ background: #f0f8f0; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }}
+                    .footer {{ background: #2c3e50; color: white; padding: 20px; text-align: center; font-size: 14px; }}
+                    .cta-button {{ 
+                        display: inline-block; 
+                        background: #667eea; 
+                        color: white; 
+                        padding: 12px 30px; 
+                        text-decoration: none; 
+                        border-radius: 25px; 
+                        margin: 20px 0;
+                        font-weight: bold;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="logo">🏠 Job Hub</div>
+                        <div class="tagline">Connecting skilled professionals with homeowners</div>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="welcome-message">
+                            <h2>Hi {name}! 👋</h2>
+                            <p><strong>We're excited to have you onboard!</strong></p>
+                            <p>Homeowners in <strong>{city}</strong> and surrounding areas are waiting for skilled professionals like you. Your expertise in <strong>{primary_trade}</strong> is exactly what they need.</p>
+                        </div>
+                        
+                        <p>Your trader registration has been confirmed successfully! 🎉</p>
+                        
+                        <div class="trader-details">
+                            <h3>📋 Registration Summary</h3>
+                            <p><strong>Name:</strong> {name}</p>
+                            <p><strong>Primary Trade:</strong> {primary_trade}</p>
+                            <p><strong>Location:</strong> {city}</p>
+                            <p><strong>Registration ID:</strong> {project_id}</p>
+                        </div>
+                        
+                        <div class="next-steps">
+                            <h3>🚀 What happens next?</h3>
+                            <p><strong>1. Profile Review (24-48 hours):</strong> Our team will review your registration to ensure quality standards.</p>
+                            <p><strong>2. Account Activation:</strong> You'll receive an email once your account is activated.</p>
+                            <p><strong>3. Start Receiving Jobs:</strong> Once activated, you'll start receiving job notifications in your area and can begin earning!</p>
+                        </div>
+                        
+                        <div class="trust-badges">
+                            <h4>🔒 Trust & Safety</h4>
+                            <p>All tradespeople on Job Hub are verified & insured for your peace of mind.</p>
+                        </div>
+                        
+                        <p><strong>Need help?</strong> Reply to this email or contact our support team - we're here to help you succeed!</p>
+                        
+                        <p>Welcome to the Job Hub family! 🏠✨</p>
+                        
+                        <p>— The Job Hub Team</p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>This email was sent to {email}</p>
+                        <p><strong>Job Hub</strong> - Connecting skilled professionals with homeowners</p>
+                        <p>&copy; {datetime.now().year} Job Hub. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            # Plain text version
+            text_content = f"""
+            🏠 Welcome to Job Hub!
+            
+            Hi {name}!
+            
+            We're excited to have you onboard! Homeowners in {city} and surrounding areas are waiting for skilled professionals like you. Your expertise in {primary_trade} is exactly what they need.
+            
+            Your trader registration has been confirmed successfully! 🎉
+            
+            Registration Summary:
+            - Name: {name}
+            - Primary Trade: {primary_trade}
+            - Location: {city}
+            - Registration ID: {project_id}
+            
+            What happens next?
+            1. Profile Review (24-48 hours): Our team will review your registration to ensure quality standards.
+            2. Account Activation: You'll receive an email once your account is activated.
+            3. Start Receiving Jobs: Once activated, you'll start receiving job notifications in your area and can begin earning!
+            
+            Trust & Safety: All tradespeople on Job Hub are verified & insured for your peace of mind.
+            
+            Need help? Reply to this email or contact our support team - we're here to help you succeed!
+            
+            Welcome to the Job Hub family! 🏠✨
+            
+            — The Job Hub Team
+            
+            Job Hub - Connecting skilled professionals with homeowners
+            """
+            
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=email,
+                subject=subject,
+                html_content=html_content,
+                plain_text_content=text_content
+            )
+            
+            response = self.sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                print(f"📧 Trader registration email sent successfully to {email}")
+                return True
+            else:
+                print(f"Failed to send trader registration email. Status: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"Error sending trader registration email: {str(e)}")
+            return False
+
+    def send_trader_admin_notification_email(self, trader_data):
+        """
+        Send notification email to admin about new trader registration
+        """
+        if not self.enabled:
+            print("📧 Email service disabled - trader admin notification not sent")
+            return False
+            
+        try:
+            # Extract trader information
+            name = trader_data.get('name', 'Trader')
+            email = trader_data.get('email', 'N/A')
+            phone = trader_data.get('phone', 'Not provided')
+            primary_trade = trader_data.get('primaryTrade', 'N/A')
+            city = trader_data.get('city', 'N/A')
+            postcode = trader_data.get('postcode', 'N/A')
+            radius_km = trader_data.get('radiusKm', 'N/A')
+            experience_years = trader_data.get('experienceYears', 'N/A')
+            certifications = trader_data.get('certifications', 'None')
+            bio = trader_data.get('bio', 'No bio provided')
+            marketing_consent = trader_data.get('marketingConsent', 'false')
+            project_id = trader_data.get('project_id', 'N/A')
+            
+            subject = f"🆕 New Trader Registration - {name} ({primary_trade})"
+            
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body {{ font-family: Arial, sans-serif; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; }}
+                    .logo {{ font-size: 28px; font-weight: bold; margin-bottom: 10px; }}
+                    .tagline {{ font-size: 14px; opacity: 0.9; }}
+                    .content {{ background: #f9f9f9; padding: 20px; }}
+                    .trader-info {{ background: white; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #667eea; }}
+                    .contact-info {{ background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #4CAF50; }}
+                    .action-required {{ background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ffc107; }}
+                    .footer {{ background: #2c3e50; color: white; padding: 15px; text-align: center; font-size: 12px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="logo">🏠 Job Hub</div>
+                        <div class="tagline">New Trader Registration Alert</div>
+                    </div>
+                    <div class="content">
+                        <div class="trader-info">
+                            <h3>👷 Trader Information</h3>
+                            <p><strong>Name:</strong> {name}</p>
+                            <p><strong>Primary Trade:</strong> {primary_trade}</p>
+                            <p><strong>Location:</strong> {city}, {postcode}</p>
+                            <p><strong>Service Radius:</strong> {radius_km} km</p>
+                            <p><strong>Experience:</strong> {experience_years} years</p>
+                            <p><strong>Certifications:</strong> {certifications}</p>
+                            <p><strong>Bio:</strong> {bio}</p>
+                            <p><strong>Marketing Consent:</strong> {marketing_consent}</p>
+                            <p><strong>Registration ID:</strong> {project_id}</p>
+                        </div>
+                        
+                        <div class="contact-info">
+                            <h3>📞 Contact Information</h3>
+                            <p><strong>Email:</strong> {email}</p>
+                            <p><strong>Phone:</strong> {phone}</p>
+                        </div>
+                        
+                        <div class="action-required">
+                            <h3>⚡ Action Required</h3>
+                            <p><strong>Review trader profile and activate account within 24-48 hours.</strong></p>
+                            <p>This helps maintain quality standards and ensures timely service for homeowners.</p>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p><strong>Job Hub</strong> - Connecting skilled professionals with homeowners</p>
+                        <p>&copy; {datetime.now().year} Job Hub. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            
+            message = Mail(
+                from_email=self.from_email,
+                to_emails=self.admin_email,
+                subject=subject,
+                html_content=html_content
+            )
+            
+            response = self.sg.send(message)
+            
+            if response.status_code in [200, 201, 202]:
+                print(f"📧 Trader admin notification sent successfully to {self.admin_email}")
+                return True
+            else:
+                print(f"Failed to send trader admin notification. Status: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"📧 Error sending trader admin notification: {str(e)}")
+            return False

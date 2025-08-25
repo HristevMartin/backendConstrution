@@ -1,8 +1,8 @@
-from flask_restful import Resource
 from flask import request
-from util.gcs_handler import GCSHandler
+from flask_restful import Resource
 from models.TraderProject import TraderProject
-import json
+from util.gcs_handler import GCSHandler
+from util.email_service import EmailService
 import uuid
 from datetime import datetime
 
@@ -11,7 +11,7 @@ class SaveTraderProject(Resource):
         try:
             print("Request content type:", request.content_type)
             print("Form data:", dict(request.form))
-            print("Files received:", len(request.files.getlist('projectImages')))
+            print("Files received:", len(request.files.getlist('projectImages')) if request.files else 0)
             
             # Generate unique project ID
             project_id = str(uuid.uuid4())
@@ -27,6 +27,12 @@ class SaveTraderProject(Resource):
             if not user_id:
                 return {"error": "userId is required"}, 400
             
+            # Validate required trader registration fields
+            required_fields = ['name', 'email', 'primaryTrade', 'city', 'postcode', 'radiusKm', 'marketingConsent']
+            missing_fields = [field for field in required_fields if not form_data.get(field)]
+            if missing_fields:
+                return {"error": f"Missing required fields: {', '.join(missing_fields)}"}, 400
+            
             # Add project metadata
             form_data['project_id'] = project_id
             form_data['user_id'] = user_id
@@ -34,8 +40,8 @@ class SaveTraderProject(Resource):
             
             print(f"Using userId: {user_id} for bucket organization")
             
-            # Handle multiple file uploads using Google Cloud Storage
-            project_images = request.files.getlist('projectImages')
+            # Handle multiple file uploads using Google Cloud Storage (if any)
+            project_images = request.files.getlist('projectImages') if request.files else []
             image_urls = []
             
             if project_images:
@@ -71,9 +77,8 @@ class SaveTraderProject(Resource):
                                 
                 except Exception as e:
                     print(f"Error initializing GCS handler: {str(e)}")
-                    return {"error": "Failed to initialize cloud storage"}, 500
-            else:
-                return {"error": "At least one image is required"}, 400
+                    # Continue without images if GCS fails
+                    image_urls = []
             
             # Add image URLs to form data
             form_data['projectImages'] = image_urls
@@ -81,45 +86,99 @@ class SaveTraderProject(Resource):
             print('Final form data:', {
                 'project_id': project_id,
                 'user_id': user_id,
+                'name': form_data.get('name'),
+                'email': form_data.get('email'),
+                'primaryTrade': form_data.get('primaryTrade'),
+                'city': form_data.get('city'),
                 'image_count': len(image_urls)
             })
             
-            # Save project data to database using the TraderProject model
+            # Save trader registration data to database using the TraderProject model
             try:
-                # Create TraderProject object
+                # Create TraderProject object with trader registration data
                 trader_project = TraderProject(
                     project_id=project_id,
                     userId=user_id,
-                    projectTitle=form_data.get('projectTitle', ''),
-                    projectDescription=form_data.get('projectDescription', ''),
-                    specifications=form_data.get('specifications', '').split(',') if form_data.get('specifications') else [],
-                    location=form_data.get('location', ''),
-                    budget=form_data.get('budget', ''),
-                    timeline=form_data.get('timeline', ''),
+                    name=form_data.get('name'),
+                    email=form_data.get('email'),
+                    phone=form_data.get('phone', ''),
+                    primaryTrade=form_data.get('primaryTrade'),
+                    otherServices=form_data.get('otherServices', ''),
+                    city=form_data.get('city'),
+                    postcode=form_data.get('postcode'),
+                    radiusKm=form_data.get('radiusKm'),
+                    experienceYears=form_data.get('experienceYears', '0'),
+                    certifications=form_data.get('certifications', ''),
+                    bio=form_data.get('bio', ''),
+                    marketingConsent=form_data.get('marketingConsent'),
                     projectImages=image_urls,
                     createdDate=datetime.utcnow()
                 )
                 
                 trader_project.save()
                 
-                print(f'Trader project saved to database successfully with ID: {project_id}')
+                print(f'Trader registration saved to database successfully with ID: {project_id}')
                 
-                # Return the saved project data
+                # Send confirmation email to trader
+                try:
+                    email_service = EmailService()
+                    
+                    # Prepare trader data for email
+                    trader_email_data = {
+                        'project_id': project_id,
+                        'name': form_data.get('name'),
+                        'email': form_data.get('email'),
+                        'primaryTrade': form_data.get('primaryTrade'),
+                        'city': form_data.get('city')
+                    }
+                    
+                    # Send trader confirmation email
+                    email_service.send_trader_registration_email(trader_email_data)
+                    
+                    # Send admin notification email
+                    admin_email_data = {
+                        'project_id': project_id,
+                        'name': form_data.get('name'),
+                        'email': form_data.get('email'),
+                        'phone': form_data.get('phone', 'Not provided'),
+                        'primaryTrade': form_data.get('primaryTrade'),
+                        'city': form_data.get('city'),
+                        'postcode': form_data.get('postcode'),
+                        'radiusKm': form_data.get('radiusKm'),
+                        'experienceYears': form_data.get('experienceYears', '0'),
+                        'certifications': form_data.get('certifications', ''),
+                        'bio': form_data.get('bio', 'No bio provided'),
+                        'marketingConsent': form_data.get('marketingConsent')
+                    }
+                    
+                    email_service.send_trader_admin_notification_email(admin_email_data)
+                    
+                except Exception as email_error:
+                    print(f"Error sending emails: {str(email_error)}")
+                    # Continue even if emails fail
+                
+                # Return the saved trader registration data
                 return {
                     "success": True,
-                    "message": "Trader project created and saved successfully!",
+                    "message": "Trader registration completed successfully!",
                     "project_id": project_id,
                     "database_id": str(trader_project.id),
                     "user_id": user_id,
                     "data": {
                         "project_id": project_id,
                         "userId": user_id,
-                        "projectTitle": trader_project.projectTitle,
-                        "projectDescription": trader_project.projectDescription,
-                        "specifications": trader_project.specifications,
-                        "location": trader_project.location,
-                        "budget": trader_project.budget,
-                        "timeline": trader_project.timeline,
+                        "name": trader_project.name,
+                        "email": trader_project.email,
+                        "phone": trader_project.phone,
+                        "primaryTrade": trader_project.primaryTrade,
+                        "otherServices": trader_project.otherServices,
+                        "city": trader_project.city,
+                        "postcode": trader_project.postcode,
+                        "radiusKm": trader_project.radiusKm,
+                        "experienceYears": trader_project.experienceYears,
+                        "certifications": trader_project.certifications,
+                        "bio": trader_project.bio,
+                        "marketingConsent": trader_project.marketingConsent,
                         "projectImages": trader_project.projectImages,
                         "createdDate": trader_project.createdDate.isoformat()
                     },
@@ -129,21 +188,18 @@ class SaveTraderProject(Resource):
                 
             except Exception as db_error:
                 print(f"Error saving to database: {str(db_error)}")
-                # Even if database save fails, we still uploaded images successfully
                 return {
                     "success": False,
-                    "message": "Project created but failed to save to database",
+                    "message": "Trader registration failed to save to database",
                     "error": str(db_error),
-                    "project_id": project_id,
-                    "images_uploaded": len(image_urls),
-                    "image_urls": image_urls
+                    "project_id": project_id
                 }, 500
             
         except Exception as e:
-            print(f"Error creating trader project: {str(e)}")
+            print(f"Error creating trader registration: {str(e)}")
             import traceback
             traceback.print_exc()
-            return {"error": f"Failed to create trader project: {str(e)}"}, 500
+            return {"error": f"Failed to create trader registration: {str(e)}"}, 500
         
     def get(self):
         try:
