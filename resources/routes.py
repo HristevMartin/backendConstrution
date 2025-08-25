@@ -11,7 +11,7 @@ from resources.TraderProject import SaveProject, UpdateProject
 from resources.User import GetUser, SaveUserRole, GetUserRole
 from resources.GetProjectServices import GetProjectServices, GetSpecificServices
 from resources.StaticFiles import ServeUploadedFile
-from resources.TraderProject import GetProjectByID, GetTraderProject
+from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
 from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
@@ -45,7 +45,7 @@ routes = [
     (GetClientProject, "/travel/get-client-project/<project_id>"),
     (EditClientProject, "/travel/edit-client-project/<project_id>"),
     (SaveTraderProject, "/travel/save-trader-project"),
-    (GetTraderProject, "/travel/get-trader-project/<project_id>"),
+    # (GetTraderProject, "/travel/get-trader-project/<project_id>"),
     (GetUserRole, "/travel/get-user-role"),
     (GetAllClientProjects, "/travel/get-all-client-projects"),
 ]
