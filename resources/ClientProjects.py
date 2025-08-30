@@ -186,6 +186,18 @@ class GetClientProject(Resource):
         except Exception as e:
             print(f"Error fetching project {project_id}: {str(e)}")
             return {"error": f"Failed to fetch project: {str(e)}"}, 500
+        
+    def delete(self, project_id):
+        """Delete a specific client project by project_id"""
+        try:
+            project = ClientProject.get_by_project_id(project_id)
+            if not project:
+                return {"error": "Project not found"}, 404
+            project.delete()
+            return {"success": True, "message": "Project deleted successfully"}, 200
+        except Exception as e:
+            print(f"Error deleting project {project_id}: {str(e)}")
+            return {"error": f"Failed to delete project: {str(e)}"}, 500
 
 
 class EditClientProject(Resource):
@@ -369,6 +381,18 @@ class EditClientProject(Resource):
         except Exception as e:
             print(f"Error editing project {project_id}: {str(e)}")
             return {"error": f"Failed to edit project: {str(e)}"}, 500
+
+    def delete(self, project_id):
+        """Delete a specific client project by project_id"""
+        try:
+            project = ClientProject.get_by_project_id(project_id)
+            if not project:
+                return {"error": "Project not found"}, 404
+            project.delete()
+            return {"success": True, "message": "Project deleted successfully"}, 200
+        except Exception as e:
+            print(f"Error deleting project {project_id}: {str(e)}")
+            return {"error": f"Failed to delete project: {str(e)}"}, 500
 
 
 class GetAllClientProjects(Resource):
