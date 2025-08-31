@@ -31,6 +31,7 @@ class TraderProject(Document):
     timeline = StringField(required=False, null=True, max_length=100)
     specifications = ListField(StringField(max_length=100), required=False, default=list)
     projectImages = ListField(StringField(max_length=500), required=False, default=list)
+    certificationImages = ListField(StringField(max_length=500), required=False, default=list)
     
     # Timestamps
     createdDate = DateTimeField(default=datetime.utcnow)
@@ -56,6 +57,36 @@ class TraderProject(Document):
     def save(self, *args, **kwargs):
         self.updated_at = datetime.utcnow()
         return super(TraderProject, self).save(*args, **kwargs)
+    
+    def to_dict(self):
+        # return a dictionary of the trader project
+        return {
+            'project_id': self.project_id,
+            'userId': self.userId,
+            'name': self.name,
+            'email': self.email,
+            'phone': self.phone,
+            'primaryTrade': self.primaryTrade,
+            'otherServices': self.otherServices,
+            'city': self.city,
+            'postcode': self.postcode,
+            'radiusKm': self.radiusKm,
+            'experienceYears': self.experienceYears,
+            'certifications': self.certifications,
+            'bio': self.bio,
+            'marketingConsent': self.marketingConsent,
+            'projectImages': self.projectImages,
+            'certificationImages': self.certificationImages,
+            'createdDate': self.createdDate.isoformat(),
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'projectTitle': self.projectTitle,
+            'projectDescription': self.projectDescription,
+            'location': self.location,
+            'budget': self.budget,
+            'timeline': self.timeline,
+            'specifications': self.specifications
+        }
 
 # Keep the old Project class for backward compatibility
 class Project(Document):

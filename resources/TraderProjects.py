@@ -42,14 +42,17 @@ class SaveTraderProject(Resource):
             
             # Handle multiple file uploads using Google Cloud Storage (if any)
             project_images = request.files.getlist('projectImages') if request.files else []
+            certification_images = request.files.getlist('certificationImages') if request.files else []
             image_urls = []
+            certification_urls = []
             
+            # Upload project images
             if project_images:
                 try:
                     # Initialize GCS handler
                     gcs_handler = GCSHandler()
                     
-                    print(f'Uploading {len(project_images)} images for user: {user_id}')
+                    print(f'Uploading {len(project_images)} project images for user: {user_id}')
                     
                     for image in project_images:
                         if image and image.filename != '':
@@ -67,21 +70,59 @@ class SaveTraderProject(Resource):
                                 
                                 if file_url:
                                     image_urls.append(file_url)
-                                    print(f"Image uploaded successfully: {file_url}")
+                                    print(f"Project image uploaded successfully: {file_url}")
                                 else:
-                                    print(f"Failed to upload image: {image.filename}")
+                                    print(f"Failed to upload project image: {image.filename}")
                                     
                             except Exception as e:
-                                print(f"Error uploading image {image.filename}: {str(e)}")
+                                print(f"Error uploading project image {image.filename}: {str(e)}")
                                 continue
                                 
                 except Exception as e:
-                    print(f"Error initializing GCS handler: {str(e)}")
+                    print(f"Error initializing GCS handler for project images: {str(e)}")
                     # Continue without images if GCS fails
                     image_urls = []
             
+            # Upload certification images
+            if certification_images:
+                try:
+                    # Initialize GCS handler
+                    gcs_handler = GCSHandler()
+                    
+                    print(f'Uploading {len(certification_images)} certification images for user: {user_id}')
+                    
+                    for image in certification_images:
+                        if image and image.filename != '':
+                            try:
+                                # Generate unique filename to prevent conflicts
+                                file_extension = image.filename.rsplit('.', 1)[1].lower() if '.' in image.filename else 'jpg'
+                                unique_filename = f"{uuid.uuid4()}.{file_extension}"
+                                
+                                # Use existing upload_profile_image method with userId from auth
+                                file_url = gcs_handler.upload_profile_image(
+                                    file=image,
+                                    user_id=user_id,
+                                    file_type='certification_pictures'
+                                )
+                                
+                                if file_url:
+                                    certification_urls.append(file_url)
+                                    print(f"Certification image uploaded successfully: {file_url}")
+                                else:
+                                    print(f"Failed to upload certification image: {image.filename}")
+                                    
+                            except Exception as e:
+                                print(f"Error uploading certification image {image.filename}: {str(e)}")
+                                continue
+                                
+                except Exception as e:
+                    print(f"Error initializing GCS handler for certification images: {str(e)}")
+                    # Continue without images if GCS fails
+                    certification_urls = []
+            
             # Add image URLs to form data
             form_data['projectImages'] = image_urls
+            form_data['certificationImages'] = certification_urls
             
             print('Final form data:', {
                 'project_id': project_id,
@@ -90,7 +131,8 @@ class SaveTraderProject(Resource):
                 'email': form_data.get('email'),
                 'primaryTrade': form_data.get('primaryTrade'),
                 'city': form_data.get('city'),
-                'image_count': len(image_urls)
+                'image_count': len(image_urls),
+                'certification_image_count': len(certification_urls)
             })
             
             # Save trader registration data to database using the TraderProject model
@@ -112,6 +154,7 @@ class SaveTraderProject(Resource):
                     bio=form_data.get('bio', ''),
                     marketingConsent=form_data.get('marketingConsent'),
                     projectImages=image_urls,
+                    certificationImages=certification_urls,
                     createdDate=datetime.utcnow()
                 )
                 
@@ -180,10 +223,13 @@ class SaveTraderProject(Resource):
                         "bio": trader_project.bio,
                         "marketingConsent": trader_project.marketingConsent,
                         "projectImages": trader_project.projectImages,
+                        "certificationImages": trader_project.certificationImages,
                         "createdDate": trader_project.createdDate.isoformat()
                     },
                     "images_uploaded": len(image_urls),
-                    "image_urls": image_urls
+                    "image_urls": image_urls,
+                    "certification_images_uploaded": len(certification_urls),
+                    "certification_urls": certification_urls
                 }, 201
                 
             except Exception as db_error:
@@ -200,13 +246,214 @@ class SaveTraderProject(Resource):
             import traceback
             traceback.print_exc()
             return {"error": f"Failed to create trader registration: {str(e)}"}, 500
-        
-    def get(self):
+    
+    def get(self, user_id):
         try:
-            projects = TraderProject.objects()
-            return {"success": True, "projects": projects}, 200
+            projects = TraderProject.objects(userId=user_id)
+            projects_list = [project.to_dict() for project in projects]
+            return {"success": True, "projects": projects_list}, 200
         except Exception as e:
             print(f"Error fetching trader projects: {str(e)}")
             return {"error": f"Failed to fetch trader projects: {str(e)}"}, 500
+    
+    def put(self, project_id):
+        try:
+            data = request.get_json()
+            project = TraderProject.objects(project_id=project_id).first()
+            if not project:
+                return {"error": "Project not found"}, 404
+            project.update(**data)
+            return {"success": True, "project": project.to_dict()}, 200
+        except Exception as e:
+            print(f"Error updating trader project: {str(e)}")
+            return {"error": f"Failed to update trader project: {str(e)}"}, 500
+
+
+class GetTraderProject(Resource):
+    def get(self, user_id):
+        print('User ID:', user_id)
+        print('Project ID:', user_id)
+        try:
+            project = TraderProject.objects(userId=user_id).first()
+            if not project:
+                return {"success": True, "project": None, "message": "No project found for this user"}, 200
+            return {"success": True, "project": project.to_dict()}, 200
+        except Exception as e:
+            print(f"Error fetching trader project: {str(e)}")
+            return {"error": f"Failed to fetch trader project: {str(e)}"}, 500
         
-        
+    def put(self, user_id):
+        try:
+            print("Request content type:", request.content_type)
+            print("Form data:", dict(request.form))
+            print("Files received:", len(request.files.getlist('projectImages')) if request.files else 0)
+            
+            # Get form data
+            form_data = {}
+            for key in request.form:
+                form_data[key] = request.form[key]
+            
+            # Get JSON data if present
+            json_data = request.get_json() if request.is_json else {}
+            
+            # Combine form data and JSON data
+            update_data = {**form_data, **json_data}
+            
+            # Filter out fields that don't exist in the TraderProject model
+            valid_fields = [
+                'name', 'email', 'phone', 'primaryTrade', 'otherServices', 'city', 
+                'postcode', 'radiusKm', 'experienceYears', 'certifications', 'bio', 
+                'marketingConsent', 'projectTitle', 'projectDescription', 'location', 
+                'budget', 'timeline', 'specifications', 'projectImages', 'certificationImages', 'replace_images',
+                'existing_portfolio_images'
+            ]
+            
+            # Only include valid fields in the update
+            filtered_update_data = {k: v for k, v in update_data.items() if k in valid_fields}
+            
+            # Check if there are any valid fields to update
+            if not filtered_update_data:
+                return {
+                    "success": True, 
+                    "message": "No valid fields to update",
+                    "project": project.to_dict()
+                }, 200
+            
+            # Find the project to update
+            project = TraderProject.objects(userId=user_id).first()
+            if not project:
+                return {"error": "Project not found"}, 404
+            
+            # Handle image uploads if any
+            project_images = request.files.getlist('projectImages') if request.files else []
+            portfolio_images = request.files.getlist('portfolio_image') if request.files else []
+            certification_images = request.files.getlist('certificationImages') if request.files else []
+            
+            # Combine all image files
+            all_images = project_images + portfolio_images
+            image_urls = []
+            certification_urls = []
+            
+            # Upload project/portfolio images
+            if all_images:
+                try:
+                    # Initialize GCS handler
+                    gcs_handler = GCSHandler()
+                    
+                    print(f'Uploading {len(all_images)} project/portfolio images for user: {user_id}')
+                    
+                    for image in all_images:
+                        if image and image.filename != '':
+                            try:
+                                # Generate unique filename to prevent conflicts
+                                file_extension = image.filename.rsplit('.', 1)[1].lower() if '.' in image.filename else 'jpg'
+                                unique_filename = f"{uuid.uuid4()}.{file_extension}"
+                                
+                                # Use existing upload_profile_image method with userId from auth
+                                file_url = gcs_handler.upload_profile_image(
+                                    file=image,
+                                    user_id=user_id,
+                                    file_type='profile_project_pictures'
+                                )
+                                
+                                if file_url:
+                                    image_urls.append(file_url)
+                                    print(f"Project/portfolio image uploaded successfully: {file_url}")
+                                else:
+                                    print(f"Failed to upload project/portfolio image: {image.filename}")
+                                    
+                            except Exception as e:
+                                print(f"Error uploading project/portfolio image {image.filename}: {str(e)}")
+                                continue
+                                
+                except Exception as e:
+                    print(f"Error initializing GCS handler for project/portfolio images: {str(e)}")
+                    # Continue without images if GCS fails
+                    image_urls = []
+            
+            # Upload certification images
+            if certification_images:
+                try:
+                    # Initialize GCS handler
+                    gcs_handler = GCSHandler()
+                    
+                    print(f'Uploading {len(certification_images)} certification images for user: {user_id}')
+                    
+                    for image in certification_images:
+                        if image and image.filename != '':
+                            try:
+                                # Generate unique filename to prevent conflicts
+                                file_extension = image.filename.rsplit('.', 1)[1].lower() if '.' in image.filename else 'jpg'
+                                unique_filename = f"{uuid.uuid4()}.{file_extension}"
+                                
+                                # Use existing upload_profile_image method with userId from auth
+                                file_url = gcs_handler.upload_profile_image(
+                                    file=image,
+                                    user_id=user_id,
+                                    file_type='certification_pictures'
+                                )
+                                
+                                if file_url:
+                                    certification_urls.append(file_url)
+                                    print(f"Certification image uploaded successfully: {file_url}")
+                                else:
+                                    print(f"Failed to upload certification image: {image.filename}")
+                                    
+                            except Exception as e:
+                                print(f"Error uploading certification image {image.filename}: {str(e)}")
+                                continue
+                                
+                except Exception as e:
+                    print(f"Error initializing GCS handler for certification images: {str(e)}")
+                    # Continue without images if GCS fails
+                    certification_urls = []
+            
+            # Handle existing portfolio images (URLs)
+            existing_portfolio_images = form_data.get('existing_portfolio_images', '')
+            if existing_portfolio_images:
+                # If it's a single URL, convert to list
+                if isinstance(existing_portfolio_images, str):
+                    existing_images_list = [existing_portfolio_images] if existing_portfolio_images else []
+                else:
+                    existing_images_list = existing_portfolio_images
+                
+                # Add existing images to the update data
+                filtered_update_data['projectImages'] = existing_images_list
+                
+                # If we have new uploaded images, append them
+                if image_urls:
+                    filtered_update_data['projectImages'] = existing_images_list + image_urls
+            elif image_urls:
+                # Only new uploaded images
+                filtered_update_data['projectImages'] = image_urls
+            
+            # Handle certification images
+            if certification_urls:
+                # If replace_images is true, replace all certification images; otherwise append
+                if filtered_update_data.get('replace_images', 'false').lower() == 'true':
+                    filtered_update_data['certificationImages'] = certification_urls
+                else:
+                    # Append new certification images to existing ones
+                    existing_certification_images = project.certificationImages or []
+                    filtered_update_data['certificationImages'] = existing_certification_images + certification_urls
+            
+            # Remove existing_portfolio_images from update data since it's not a database field
+            filtered_update_data.pop('existing_portfolio_images', None)
+            
+            # Update the project
+            project.update(**filtered_update_data)
+            
+            # Reload the project to get updated data
+            project.reload()
+            
+            return {
+                "success": True, 
+                "message": "Project updated successfully",
+                "project": project.to_dict(),
+                "images_uploaded": len(image_urls) if image_urls else 0,
+                "certification_images_uploaded": len(certification_urls) if certification_urls else 0
+            }, 200
+            
+        except Exception as e:
+            print(f"Error updating trader project: {str(e)}")
+            return {"error": f"Failed to update trader project: {str(e)}"}, 500

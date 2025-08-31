@@ -71,7 +71,7 @@ class ClientProjects(Resource):
             
             print(f"Using userId: {user_id} for bucket organization")
             
-            # Handle multiple file uploads using Google Cloud Storage
+            # Handle multiple file uploads using Google Cloud Storage (optional)
             project_images = request.files.getlist('images')
             image_urls = []
             
@@ -110,7 +110,7 @@ class ClientProjects(Resource):
                     print(f"Error initializing GCS handler: {str(e)}")
                     return {"error": "Failed to initialize cloud storage"}, 500
             else:
-                return {"error": "At least one image is required"}, 400
+                print("No images provided - creating project without images")
             
             # Add image URLs to form data
             form_data['image_urls'] = image_urls

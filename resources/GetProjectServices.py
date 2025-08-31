@@ -33,6 +33,7 @@ class GetProjectServices(Resource):
     def get(self):
         projects = TraderProfile.objects()
         project_list = []
+        print('show me the projects', projects)
         for project in projects:
             project_data = {
                 "trade": project.selectedTrades
