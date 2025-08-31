@@ -24,6 +24,8 @@ class ClientProject(Document):
     job_title = StringField(max_length=200)
     job_description = StringField()
     location = StringField(max_length=100)
+    postcode = StringField(max_length=20, required=False)  # Optional postcode field (UK only)
+    nuts = StringField(max_length=100, required=False)  # Optional NUTS area field (London only)
     budget = StringField(max_length=50)
     urgency = StringField(max_length=20, choices=['asap', 'this_week', 'this_month', 'flexible'], null=True)
     country = StringField(max_length=5)  # Country code like 'BG', 'US', etc.
@@ -57,7 +59,8 @@ class ClientProject(Document):
             'location',
             'country',
             'service_category'
-        ]
+        ],
+        # 'strict': False  # Allow fields not defined in the model
     }
     
     def save(self, *args, **kwargs):
@@ -80,6 +83,8 @@ class ClientProject(Document):
             job_title=form_data.get('jobTitle', ''),
             job_description=form_data.get('jobDescription', ''),
             location=form_data.get('location', ''),
+            postcode=form_data.get('postcode', ''),
+            nuts=form_data.get('nuts', ''),
             budget=form_data.get('budget', ''),
             urgency=form_data.get('urgency', 'flexible'),
             country=form_data.get('country', ''),
@@ -104,6 +109,8 @@ class ClientProject(Document):
             'job_title': self.job_title,
             'job_description': self.job_description,
             'location': self.location,
+            'postcode': self.postcode,
+            'nuts': self.nuts,
             'budget': self.budget,
             'urgency': self.urgency,
             'country': self.country,

@@ -6,7 +6,42 @@ from util.email_service import EmailService
 from models.ClientProject import ClientProject
 import json
 import uuid
+import requests
 from datetime import datetime
+
+def fetch_nuts_from_postcode(postcode):
+    """
+    Fetch NUTS (Nomenclature of Territorial Units for Statistics) information from postcodes.io API
+    Returns the NUTS area if found, otherwise returns 'London' as fallback
+    """
+    try:
+        # Clean the postcode (remove spaces and convert to uppercase)
+        clean_postcode = postcode.replace(' ', '').upper()
+        
+        # Call the postcodes.io API
+        url = f"https://api.postcodes.io/postcodes/{clean_postcode}"
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 200 and data.get('result'):
+                nuts = data['result'].get('nuts')
+                if nuts:
+                    print(f"Successfully fetched NUTS area: {nuts} for postcode: {postcode}")
+                    return nuts
+                else:
+                    print(f"No NUTS found in API response for postcode: {postcode}, using fallback 'London'")
+                    return 'London'
+            else:
+                print(f"API returned error status for postcode: {postcode}, using fallback 'London'")
+                return 'London'
+        else:
+            print(f"Failed to fetch NUTS for postcode: {postcode}. Status code: {response.status_code}, using fallback 'London'")
+            return 'London'
+            
+    except Exception as e:
+        print(f"Error fetching NUTS for postcode {postcode}: {str(e)}, using fallback 'London'")
+        return 'London'
 
 class ClientProjects(Resource):
     def post(self):
@@ -80,10 +115,28 @@ class ClientProjects(Resource):
             # Add image URLs to form data
             form_data['image_urls'] = image_urls
             
+            # Check if location is London and fetch NUTS area from postcode
+            location = form_data.get('location', '').strip()
+            postcode = form_data.get('postcode', '').strip()
+            
+            if location.lower() == 'london' and postcode:
+                print(f"Location is London and postcode provided: {postcode}")
+                nuts = fetch_nuts_from_postcode(postcode)
+                form_data['nuts'] = nuts
+                print(f"Added NUTS area to form data: {nuts}")
+            elif location.lower() == 'london' and not postcode:
+                print(f"Location is London but no postcode provided, using fallback 'London'")
+                form_data['nuts'] = 'London'
+            else:
+                print(f"Location is not London ({location}) or no postcode provided ({postcode})")
+            
             print('Final form data:', {
                 'project_id': project_id,
                 'email': form_data.get('email', 'N/A'),
-                'image_count': len(image_urls)
+                'image_count': len(image_urls),
+                'location': location,
+                'postcode': postcode,
+                'nuts': form_data.get('nuts', 'N/A')
             })
             
             # Save project data to database using the ClientProject model
@@ -261,6 +314,20 @@ class EditClientProject(Resource):
             if 'location' in data:
                 project.location = data['location']
                 print(f"Updated location: {data['location']}")
+            if 'postcode' in data:
+                project.postcode = data['postcode']
+                print(f"Updated postcode: {data['postcode']}")
+                
+                # If location is London, fetch NUTS area from postcode
+                if project.location and project.location.lower() == 'london' and data['postcode']:
+                    print(f"Location is London and postcode updated: {data['postcode']}")
+                    nuts = fetch_nuts_from_postcode(data['postcode'])
+                    project.nuts = nuts
+                    print(f"Updated NUTS area: {nuts}")
+                        
+            if 'nuts' in data:
+                project.nuts = data['nuts']
+                print(f"Updated nuts: {data['nuts']}")
             if 'budget' in data:
                 project.budget = data['budget']
                 print(f"Updated budget: {data['budget']}")
@@ -292,6 +359,7 @@ class EditClientProject(Resource):
                 'first_name': 'firstName',
                 'contact_method': 'contactMethod',
                 'gdpr_consent': 'gdprConsent',
+                'postcode': 'postcode',  # Keep as is since it's already camelCase
                 'ob_title': 'jobTitle'  # Handle typo case
             }
             
