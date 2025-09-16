@@ -17,6 +17,7 @@ from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
 from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject, GetAllClientProjects
 from resources.TraderProjects import SaveTraderProject, GetTraderProject
+from resources.Payments import PayWithStripe
 
 
 routes = [
@@ -48,4 +49,5 @@ routes = [
     (GetTraderProject, "/travel/get-trader-project/<user_id>"),
     (GetUserRole, "/travel/get-user-role"),
     (GetAllClientProjects, "/travel/get-all-client-projects"),
+    (PayWithStripe, "/api/payments/create-intent")
 ]
