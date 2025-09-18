@@ -17,10 +17,28 @@ class EmailService:
             return
             
         self.enabled = True
+        print(f"🔑 API Key length: {len(Config.SENDGRID_API_KEY)}")
+        print(f"🔑 API Key starts with: {Config.SENDGRID_API_KEY[:10]}...")
+        print(f"📧 From email: {Config.SENDGRID_FROM_EMAIL}")
         self.sg = SendGridAPIClient(api_key=Config.SENDGRID_API_KEY)
         self.from_email = Config.SENDGRID_FROM_EMAIL
-        self.admin_email = "virtoala0@gmail.com"
+        self.admin_email = "hristevmartin96@gmail.com"
         self.company_name = Config.COMPANY_NAME
+        
+    def test_sendgrid_connection(self):
+        """Test SendGrid connection with a simple API call"""
+        if not self.enabled:
+            print("📧 Email service disabled - cannot test connection")
+            return False
+            
+        try:
+            # Try to get account information to test the API key
+            response = self.sg.client.user.get()
+            print(f"✅ SendGrid connection successful! Status: {response.status_code}")
+            return True
+        except Exception as e:
+            print(f"❌ SendGrid connection failed: {str(e)}")
+            return False
         
     def send_project_confirmation_email(self, project_data):
         """
@@ -144,6 +162,8 @@ class EmailService:
                 return True
             else:
                 print(f"Failed to send email. Status: {response.status_code}")
+                print(f"Response body: {response.body}")
+                print(f"Response headers: {response.headers}")
                 return False
                 
         except Exception as e:
@@ -340,6 +360,8 @@ class EmailService:
                 return True
             else:
                 print(f"Failed to send admin notification. Status: {response.status_code}")
+                print(f"Response body: {response.body}")
+                print(f"Response headers: {response.headers}")
                 return False
                 
         except Exception as e:

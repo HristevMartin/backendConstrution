@@ -25,13 +25,17 @@ class AuthManager:
     @staticmethod
     def decode_token(token):
         try:
+            print(f"🔍 Attempting to decode token with secret key: {jwt_secret_key[:10]}...")
             data = jwt.decode(token, key=jwt_secret_key, algorithms=["HS256"])
+            print(f"🔍 Decoded JWT payload: {data}")
             return data["sub"], data["role"]
 
         except jwt.ExpiredSignatureError:
+            print("❌ JWT token has expired")
             raise BadRequest("Token expired")
 
-        except jwt.InvalidTokenError:
+        except jwt.InvalidTokenError as e:
+            print(f"❌ Invalid JWT token: {str(e)}")
             raise BadRequest("Invalid token")
 
 
@@ -40,15 +44,23 @@ auth = HTTPTokenAuth(scheme="Bearer")
 
 @auth.verify_token
 def verify_token(token):
-    user_id, role = AuthManager.decode_token(token)
-
-    if BlacklistedToken.objects(token=token).first():
+    print(f"🔑 Received token: {token[:50]}...")
+    
+    try:
+        user_id, role = AuthManager.decode_token(token)
+        print(f"🔑 Decoded user_id: {user_id}, role: {role}")
+    except Exception as e:
+        print(f"❌ Failed to decode token: {str(e)}")
         return None
+
+    # if BlacklistedToken.objects(token=token).first():
+    #     return None
 
     try:
         user = Users.objects(id=ObjectId(user_id)).first()
+        print(f"👤 Found user: {user.email if user else 'None'}")
     except Exception as e:
-        print(f"Failed to fetch user from MongoDB: {str(e)}")
+        print(f"❌ Failed to fetch user from MongoDB: {str(e)}")
         return None
 
     return user
