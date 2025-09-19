@@ -88,10 +88,12 @@ class PayWithStripe(Resource):
         try:
             data = request.get_json(force=True) or {}
             user_id = data.get("user_id")
+            job_id = data.get("job_id")
             print('show me the user id', user_id)
-            application = Application.objects(trader_id=user_id).first()
+            application = Application.objects(trader_id=user_id, job_id=job_id).first()
             print('show me the application', application)
-            print()
+            print('show me the job id', job_id)
+            print('it is marked as paid')
             application.status = "paid"
             application.save()
             return {"message": "Application marked as paid"}, 200

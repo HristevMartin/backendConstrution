@@ -52,3 +52,5 @@ class Conversation(Document):
     
     def __str__(self):
         return f'<Conversation {self.conversation_id}: {self.homeowner_id} <-> {self.trader_id}>'
+
+
