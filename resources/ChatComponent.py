@@ -491,7 +491,7 @@ class ChatSummary(Resource):
 
 class MarkConversationRead(Resource):
     @auth.login_required
-    def post(self, conversation_id):
+    def get(self, conversation_id):
         """Mark conversation as read for the authenticated user"""
         try:
             current_user = auth.current_user()
@@ -522,63 +522,3 @@ class MarkConversationRead(Resource):
             print(f"Error marking conversation as read: {str(e)}")
             return {"error": f"Failed to mark conversation as read: {str(e)}"}, 500
             
-
-# Config
-ALLOWED = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-MAX_SIZE = 10 * 1024 * 1024  # 10 MB
-BUCKET  = os.getenv("GCS_BUCKET", "client_images_zoo")
-PUBLIC_OBJECTS = os.getenv("GCS_PUBLIC_OBJECTS", "true").lower() == "true"
-
-def is_member(user_id: str, conversation_id: str) -> bool:
-    return ConversationParticipant.objects(
-        conversation_id=conversation_id, user_id=user_id
-    ).first() is not None
-
-class SignAttachment(Resource):
-    @auth.login_required
-    def post(self, conversation_id):
-        """Return a signed PUT URL for uploading an image to GCS."""
-        try:
-            user_id = str(auth.current_user().id)
-            if not is_member(user_id, conversation_id):
-                return {"error": "Not a participant in this conversation"}, 403
-
-            data = request.get_json() or {}
-            content_type = (data.get("contentType") or "").lower()
-            size = int(data.get("size") or 0)
-
-            if content_type not in ALLOWED:
-                return {"error": "Unsupported content type"}, 400
-            if size <= 0 or size > MAX_SIZE:
-                return {"error": "File too large"}, 400
-
-            ext = ALLOWED[content_type]
-            key = f"chat_images/{conversation_id}/{uuid.uuid4().hex}{ext}"
-
-            client = storage.Client()
-            blob = client.bucket(BUCKET).blob(key)
-
-            upload_url = blob.generate_signed_url(
-                version="v4",
-                expiration=timedelta(minutes=10),
-                method="PUT",
-                content_type=content_type,
-            )
-
-            file_url = (
-                f"https://storage.googleapis.com/{BUCKET}/{key}"
-                if PUBLIC_OBJECTS else None
-            )
-
-            return {
-                "success": True,
-                "key": key,
-                "uploadUrl": upload_url,
-                "fileUrl": file_url,                     # None if objects are private
-                "headers": {"Content-Type": content_type},
-                "maxSize": MAX_SIZE,
-            }, 200
-
-        except Exception as e:
-            print(f"SignAttachment error: {e}")
-            return {"error": "Failed to sign upload"}, 500

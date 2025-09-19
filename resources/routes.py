@@ -18,7 +18,7 @@ from resources.CommentResource import SaveComment, GetCommentsByProjectId, Delet
 from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject, GetAllClientProjects
 from resources.TraderProjects import SaveTraderProject, GetTraderProject
 from resources.Payments import PayWithStripe, CheckPaymentStatus
-from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead, SignAttachment
+from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
 
 
 routes = [
@@ -40,5 +40,4 @@ routes = [
     (GetConversationById, "/travel/chat-component/get-conversation-by-id/<job_id>"),
     (ChatSummary, "/travel/chat-component/chat-summary"),
     (MarkConversationRead, "/travel/chat-component/mark-as-read/<conversation_id>"),
-    (SignAttachment, "/travel/chat-component/<conversation_id>/attachments/sign"),
 ]
