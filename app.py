@@ -10,6 +10,8 @@ from resources.routes import routes
 
 db = MongoEngine()
 
+FRONTEND_ORIGIN = "http://localhost:8000"
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -25,7 +27,13 @@ def create_app():
 
     initialize_passenger_types()
 
-    CORS(app, origins=["*"], allow_headers=["Authorization", "Content-Type"])
+    CORS(
+    app,
+    supports_credentials=True,
+    resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    )
 
     return app
 

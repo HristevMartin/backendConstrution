@@ -5,11 +5,14 @@ import jwt
 from bson import ObjectId
 from flask_httpauth import HTTPTokenAuth
 from werkzeug.exceptions import BadRequest
+from flask import request
 
 from models.user import BlacklistedToken, Users
 
 jwt_secret_key = os.getenv("SECRET_KEY")
 jwt_secret_key = "dsadsadsadasdasdasdsadsa"
+JWT_ALGS   = ["HS256"]
+COOKIE_NAME = "access_token"
 
 class AuthManager:
     @staticmethod
@@ -41,9 +44,23 @@ class AuthManager:
 
 auth = HTTPTokenAuth(scheme="Bearer")
 
+def _get_token_from_request() -> str | None:
+    tok = request.cookies.get(COOKIE_NAME)
+    print('in here the token is', tok)
+    if tok:
+        return tok
+
+    authz = request.headers.get("Authorization", "")
+    if authz.lower().startswith("bearer "):
+        return authz.split(" ", 1)[1].strip()
+    return None
+
 
 @auth.verify_token
 def verify_token(token):
+    token = _get_token_from_request()
+    if not token:
+        return None
     print(f"🔑 Received token: {token[:50]}...")
     
     try:

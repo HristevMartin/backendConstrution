@@ -8,6 +8,7 @@ import json
 import uuid
 import requests
 from datetime import datetime
+from managers.auth import auth, _get_token_from_request
 
 def fetch_nuts_from_postcode(postcode):
     """
@@ -464,34 +465,21 @@ class EditClientProject(Resource):
 
 
 class GetAllClientProjects(Resource):
+    @auth.login_required
     def get(self):
         try:
-            # Extract Bearer token from Authorization header
-            auth_header = request.headers.get('Authorization')
-            print(f"Full Authorization header: {auth_header}")  # Debug the full header
             
-            if not auth_header:
-                return {"error": "Authorization header is required"}, 401
+            token = _get_token_from_request()
+            if not token:
+                return {"error": "Token is required"}, 401
             
-            # Check if it's a Bearer token
-            if not auth_header.startswith('Bearer '):
-                return {"error": "Invalid authorization format. Use 'Bearer <token>'"}, 401
+            print(f"Extracted token: '{token}'") 
             
-            # Extract the token
-            token = auth_header.split('Bearer ')[1]
-            print(f"Extracted token: '{token}'")  # Debug the extracted token
-            
-            # Check if token is null, undefined, or empty
             if not token or token == 'null' or token == 'undefined' or token.strip() == '':
                 return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
+            print(f"Token received: {token[:20]}...") 
             
-            print(f"Token received: {token[:20]}...")  # Log first 20 chars for debugging
             
-            # TODO: Add token validation logic here
-            # For now, we'll just check if token exists
-            # You can add JWT validation, database lookup, etc.
-            
-            # Get all client projects
             projects = ClientProject.objects()
             projects_list = [project.to_dict() for project in projects]
             

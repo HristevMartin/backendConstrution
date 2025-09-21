@@ -398,7 +398,8 @@ class GetConversationById(Resource):
         try:
             current_user = auth.current_user()
             user_id = str(current_user.id)
-            
+            print('show me the user_id', user_id)
+            print('show me the job_id', job_id)
             # Search for conversation by job_id and trader_id
             conversation = Conversation.objects(job_id=job_id, trader_id=user_id).first()
             

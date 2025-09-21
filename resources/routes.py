@@ -5,6 +5,7 @@ from resources.auth import (
     Logout,
     ForgotPassword,
     ResetPassword,
+    GetSession,
 )
 
 from resources.TraderForm import TraderForm
@@ -44,4 +45,5 @@ routes = [
     (ChatSummary, "/travel/chat-component/chat-summary"),
     (MarkConversationRead, "/travel/chat-component/mark-as-read/<conversation_id>"),
     (ResetPassword, "/travel/reset-password"),
+    (GetSession, "/travel/auth/session"),
 ]

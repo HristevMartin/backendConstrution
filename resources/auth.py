@@ -2,7 +2,7 @@ import secrets
 import hashlib
 from datetime import datetime, timedelta
 
-from flask import request, jsonify
+from flask import request, jsonify, make_response
 from flask_restful import Resource
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -14,10 +14,15 @@ from schemas.requests.user import TravelRegisterRequestSchema, TravelLoginReques
 from util.decorators import validate_schema, permission_required
 from util.send_reset_password import _send_reset_email
 from config import Config
+from managers.auth import _get_token_from_request
 
 # Constants for password reset
 APP_BASE_URL = Config.APP_BASE_URL
-RESET_TTL_MIN = 30  # Reset token expires in 30 minutes
+RESET_TTL_MIN = 30  
+
+PROD = False                    
+COOKIE_NAME = "access_token"
+COOKIE_MAX_AGE = 7 * 24 * 60 * 60  
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -57,18 +62,30 @@ class Login(Resource):
     # @validate_schema(TravelLoginRequestSchema)
     def post(self):
         result, status = User().authenticate_user(request)
-        print('show me the result', result)
-        # If login was successful, transform response to match registration format
+
         if status == 200 and 'access_token' in result:
-            
-            # Transform response to match registration format
-            return {
+
+            token = result['access_token']
+
+            body = {
                 "id": result.get("user_id"),
-                "role": result.get("role"),
-                "token": result.get("access_token")
-            }, 200
+                "role": result.get("role")
+            }
+            
+            resp = make_response(jsonify(body), 200)
+
+            resp.set_cookie(
+                COOKIE_NAME,
+                token,
+                max_age=COOKIE_MAX_AGE,
+                httponly=True,          
+                secure=PROD,            
+                samesite="Lax",         
+                path="/",
+            )
+
+            return resp
         
-        # Return error response as is
         return result, status
 
 
@@ -130,28 +147,24 @@ class InsertAdminUser(Resource):
 class Logout(Resource):
     @auth.login_required
     def delete(self):
-        current_user = auth.current_user()
+            user = auth.current_user()
+            if not user:
+                return {"message": "Invalid user session"}, 401
 
-        if not current_user:
-            return {"message": "Invalid user session"}, 401
+            # Optional: read token for logging/metrics
+            token = _get_token_from_request()
 
-        token = request.headers.get("Authorization").split(" ")[1]
-        expires_at = datetime.utcnow() + timedelta(days=1)
-
-        try:
-            BlacklistedToken(
-                token=token,
-                expiresAt=expires_at,
-                reason="User logged out",
-                userId=current_user["id"],
-                email=current_user["email"],
-                role=current_user["role"]
-            ).save()
-
-            return {"message": "Logged out successfully"}, 200
-        except Exception as e:
-            print("Failed to blacklist token:", str(e))
-            return {"message": "Failed to logout"}, 500
+            resp = make_response(jsonify({"message": "Logged out successfully"}), 200)
+            resp.set_cookie(
+                COOKIE_NAME,
+                "",
+                max_age=0,          
+                path="/",
+                httponly=True,
+                samesite="Lax",      
+                secure=False,       
+            )
+            return resp
 
 
 class Test(Resource):
@@ -218,3 +231,21 @@ class ResetPassword(Resource):
         user.save()
         
         return {"success": True, "message": "Password has been reset successfully"}, 200
+
+class GetSession(Resource):
+    @auth.login_required
+    def get(self):
+        try:
+            user = auth.current_user()
+            if not user:
+                return {"authenticated": False}, 401
+            
+            return {
+                "authenticated": True,
+                "id": str(user.id),
+                "email": user.email,
+                "role": user.role
+            }, 200
+        except Exception as e:
+            print(f"❌ Failed to get session: {str(e)}")
+            return {"authenticated": False, "error": "Failed to get session"}, 500
