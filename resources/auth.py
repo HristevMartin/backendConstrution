@@ -22,7 +22,7 @@ RESET_TTL_MIN = 30
 
 PROD = False                    
 COOKIE_NAME = "access_token"
-COOKIE_MAX_AGE = 7 * 24 * 60 * 60  
+COOKIE_MAX_AGE = 60 * 24 * 60 * 60
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -30,36 +30,42 @@ def _sha256(text: str) -> str:
 
 
 class Register(Resource):
-    # @validate_schema(TravelRegisterRequestSchema)
     def post(self):
-        print('in here')
         result = User().check_and_create_user_data(request)
-        print('blqblqblq', result)
         if 'message' in result:
             return result, 400
+
+        # Create and persist user
+        new_user = Users(**result)
+        new_user.save()
+
+        user_id = str(new_user.id)
+
+        if isinstance(new_user.role, list):
+            user_role = new_user.role[0] if new_user.role else 'USER'
         else:
-            # Create and save the new user
-            new_user = Users(**result)
-            new_user.save()
-            print('new_user', new_user)
-            # Generate token for automatic login
-            user_id = str(new_user.id)
-            user_role = result["role"][0] if result["role"] else 'USER'
-            token = AuthManager.encode_token(user_id, user_role)
-            
-            # Get language from request for callback URL
-            lang = request.json.get("lang", "en")
-            
-            # Return login data for automatic login
-            return {
-                "id": user_id,
-                "role": user_role,
-                "token": token
-            }, 201
+            user_role = new_user.role or 'USER'
+
+        token = AuthManager.encode_token(user_id, user_role)
+
+        resp = make_response(jsonify({
+            "id": user_id,
+            "role": user_role
+        }), 201)
+
+        resp.set_cookie(
+            COOKIE_NAME,
+            token,
+            max_age=COOKIE_MAX_AGE,
+            httponly=True,
+            secure=PROD,                      
+            samesite=("None" if PROD else "Lax"),
+            path="/",
+        )
+        return resp
 
 
 class Login(Resource):
-    # @validate_schema(TravelLoginRequestSchema)
     def post(self):
         result, status = User().authenticate_user(request)
 

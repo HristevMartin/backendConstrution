@@ -1,14 +1,18 @@
+from datetime import datetime, timedelta               
+from flask import Flask, request, g  
 from config import Config
-from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api
-# from flask_restx import Api
+from managers.auth import AuthManager, COOKIE_NAME 
 from flask_mongoengine import MongoEngine
 
 from models.passenger import initialize_passenger_types
 from resources.routes import routes
 
 db = MongoEngine()
+
+ROLLING_WINDOW = timedelta(hours=24)        
+COOKIE_MAX_AGE = 60 * 24 * 60 * 60  
 
 FRONTEND_ORIGIN = "http://localhost:8000"
 
@@ -34,6 +38,40 @@ def create_app():
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     )
+
+    @app.after_request
+    def maybe_refresh_jwt(resp):
+        try:
+            # Only act on your API, skip logout & preflights
+            if not request.path.startswith("/travel/"):
+                return resp
+            if request.path.endswith("/logout") or request.method == "OPTIONS":
+                return resp
+
+            payload = getattr(g, "jwt_payload", None)
+            if not payload:
+                return resp  # unauthenticated or decode failed (401 path)
+
+            exp_val = payload.get("exp")
+            if not exp_val:
+                return resp
+
+            # exp can be a timestamp (int/float) or datetime
+            exp_dt = datetime.utcfromtimestamp(exp_val) if isinstance(exp_val, (int, float)) else exp_val
+            if (exp_dt - datetime.utcnow()) <= ROLLING_WINDOW:
+                new_token = AuthManager.encode_token(payload["sub"], payload.get("role"))
+                resp.set_cookie(
+                    COOKIE_NAME,
+                    new_token,
+                    max_age=COOKIE_MAX_AGE,
+                    httponly=True,
+                    samesite="Lax",   
+                    secure=False,     
+                    path="/",
+                )
+        except Exception:
+            pass
+        return resp
 
     return app
 

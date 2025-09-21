@@ -5,7 +5,7 @@ import jwt
 from bson import ObjectId
 from flask_httpauth import HTTPTokenAuth
 from werkzeug.exceptions import BadRequest
-from flask import request
+from flask import request, g
 
 from models.user import BlacklistedToken, Users
 
@@ -19,26 +19,21 @@ class AuthManager:
     def encode_token(user_id, role):
         payload = {
             "sub": user_id,
-            "exp": datetime.utcnow() + timedelta(days=7),
+            "exp": datetime.utcnow() + timedelta(days=60),
             "role": role,
+            "iat": datetime.utcnow(), 
         }
         token = jwt.encode(payload, key=jwt_secret_key, algorithm="HS256")
         return token
 
     @staticmethod
-    def decode_token(token):
+    def decode_token_with_payload(token):
         try:
-            print(f"🔍 Attempting to decode token with secret key: {jwt_secret_key[:10]}...")
             data = jwt.decode(token, key=jwt_secret_key, algorithms=["HS256"])
-            print(f"🔍 Decoded JWT payload: {data}")
-            return data["sub"], data["role"]
-
+            return data["sub"], data.get("role"), data
         except jwt.ExpiredSignatureError:
-            print("❌ JWT token has expired")
             raise BadRequest("Token expired")
-
         except jwt.InvalidTokenError as e:
-            print(f"❌ Invalid JWT token: {str(e)}")
             raise BadRequest("Invalid token")
 
 
@@ -64,14 +59,12 @@ def verify_token(token):
     print(f"🔑 Received token: {token[:50]}...")
     
     try:
-        user_id, role = AuthManager.decode_token(token)
+        user_id, role, payload = AuthManager.decode_token_with_payload(token)
+        g.jwt_payload = payload 
         print(f"🔑 Decoded user_id: {user_id}, role: {role}")
     except Exception as e:
         print(f"❌ Failed to decode token: {str(e)}")
         return None
-
-    # if BlacklistedToken.objects(token=token).first():
-    #     return None
 
     try:
         user = Users.objects(id=ObjectId(user_id)).first()
