@@ -2,6 +2,7 @@ from datetime import datetime
 
 from flask_mongoengine import MongoEngine
 from mongoengine import IntField
+from mongoengine import StringField, DateTimeField
 
 db = MongoEngine()
 
@@ -13,6 +14,9 @@ class Users(db.Document):
     isDeleted = db.BooleanField(default=False)
     role = db.ListField()
     customerId = IntField(required=False)
+    reset_token_hash = StringField()     
+    reset_expires_at = DateTimeField()
+    reset_used_at = DateTimeField()
 
     def __repr__(self):
         return f'<User {self.email}>'

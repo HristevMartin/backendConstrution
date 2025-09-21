@@ -1,8 +1,10 @@
+import secrets
+import hashlib
 from datetime import datetime, timedelta
 
 from flask import request, jsonify
 from flask_restful import Resource
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from managers.auth import auth, AuthManager
 from managers.user import User
@@ -10,6 +12,16 @@ from models.enums import RoleType
 from models.user import Users, BlacklistedToken
 from schemas.requests.user import TravelRegisterRequestSchema, TravelLoginRequestSchema
 from util.decorators import validate_schema, permission_required
+from util.send_reset_password import _send_reset_email
+from config import Config
+
+# Constants for password reset
+APP_BASE_URL = Config.APP_BASE_URL
+RESET_TTL_MIN = 30  # Reset token expires in 30 minutes
+
+def _sha256(text: str) -> str:
+    """Create SHA256 hash of text"""
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 class Register(Resource):
@@ -147,3 +159,62 @@ class Test(Resource):
     # @permission_required(RoleType.MANAGEMENT, RoleType.ADMIN)
     def get(self):
         return {"message": "Hello World!"}
+
+
+class ForgotPassword(Resource):
+    # POST /travel/forgot-password  { "email": "user@example.com" }
+    def post(self):
+        data  = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+
+        # Always return 200 (avoid user enumeration)
+        user = Users.objects(email=email).first()
+        if user:
+            raw = secrets.token_urlsafe(32)
+            user.reset_token_hash = _sha256(raw)
+            user.reset_expires_at = datetime.utcnow() + timedelta(minutes=RESET_TTL_MIN)
+            user.reset_used_at    = None
+            user.save()
+
+            reset_link = f"{APP_BASE_URL}/reset-password?token={raw}"
+            print(f"show me the reset link", reset_link)
+            _send_reset_email(email, reset_link)
+
+        return {"success": True, "message": "If that email exists, we’ve sent a reset link."}, 200
+
+
+class ResetPassword(Resource):
+    # POST /travel/reset-password  { "token": "reset_token", "new_password": "new_password" }
+    def post(self):
+        data = request.get_json() or {}
+        token = data.get("token", "").strip()
+        new_password = data.get("new_password", "").strip()
+        
+        if not token or not new_password:
+            return {"error": "Token and new password are required"}, 400
+        
+        if len(new_password) < 6:
+            return {"error": "Password must be at least 6 characters long"}, 400
+        
+        token_hash = _sha256(token)
+        user = Users.objects(reset_token_hash=token_hash).first()
+        
+        if not user:
+            return {"error": "Invalid or expired reset token"}, 400
+        
+        # Check if token is expired
+        if user.reset_expires_at and user.reset_expires_at < datetime.utcnow():
+            return {"error": "Reset token has expired"}, 400
+        
+        # Check if token was already used
+        if user.reset_used_at:
+            return {"error": "Reset token has already been used"}, 400
+        
+        # Update user password and mark token as used
+        user.password = generate_password_hash(new_password, method="pbkdf2:sha256")
+        user.reset_used_at = datetime.utcnow()
+        user.reset_token_hash = None  # Clear the token
+        user.reset_expires_at = None
+        user.save()
+        
+        return {"success": True, "message": "Password has been reset successfully"}, 200

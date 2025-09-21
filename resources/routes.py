@@ -3,6 +3,8 @@ from resources.auth import (
     Login,
     Test,
     Logout,
+    ForgotPassword,
+    ResetPassword,
 )
 
 from resources.TraderForm import TraderForm
@@ -25,6 +27,7 @@ routes = [
     (Register, "/travel/register"),
     (Login, "/travel/login"),
     (Logout, "/travel/logout"),
+    (ForgotPassword, "/travel/forgot-password"),
     (ClientProjects, "/travel/save-client-project"),
     (GetClientProject, "/travel/get-client-project/<project_id>"),
     (EditClientProject, "/travel/edit-client-project/<project_id>"),
@@ -40,4 +43,5 @@ routes = [
     (GetConversationById, "/travel/chat-component/get-conversation-by-id/<job_id>"),
     (ChatSummary, "/travel/chat-component/chat-summary"),
     (MarkConversationRead, "/travel/chat-component/mark-as-read/<conversation_id>"),
+    (ResetPassword, "/travel/reset-password"),
 ]
