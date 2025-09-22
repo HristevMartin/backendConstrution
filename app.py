@@ -14,11 +14,16 @@ db = MongoEngine()
 ROLLING_WINDOW = timedelta(hours=24)        
 COOKIE_MAX_AGE = 60 * 24 * 60 * 60  
 
-FRONTEND_ORIGIN = "http://localhost:8000"
+FRONTEND_ORIGIN = [
+    "http://localhost:8000",     
+    "http://192.168.0.46:8000",
+    "http://192.168.0.37:8000"    
+]
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config.secret_key = "dasdasdasdasdas!321312?"
 
     db.init_app(app)
 
@@ -31,13 +36,18 @@ def create_app():
 
     initialize_passenger_types()
 
-    CORS(
-    app,
-    supports_credentials=True,
-    resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
-    )
+    # CORS(
+    # app,
+    # supports_credentials=True,
+    # resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
+    # methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    # allow_headers=["Content-Type", "Authorization"],
+    # )
+    CORS(app, 
+         origins=["http://localhost:8000", "http://192.168.0.46:8000", "http://192.168.0.37:8000"],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
     @app.after_request
     def maybe_refresh_jwt(resp):
