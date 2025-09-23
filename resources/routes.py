@@ -22,6 +22,7 @@ from resources.ClientProjects import ClientProjects, GetClientProject, EditClien
 from resources.TraderProjects import SaveTraderProject, GetTraderProject
 from resources.Payments import PayWithStripe, CheckPaymentStatus
 from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
+from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 
 
 routes = [
@@ -46,4 +47,6 @@ routes = [
     (MarkConversationRead, "/travel/chat-component/mark-as-read/<conversation_id>"),
     (ResetPassword, "/travel/reset-password"),
     (GetSession, "/travel/auth/session"),
+    (SimplePageTrackingResource, "/travel/track-visit"),
+    (GetPageVisits, "/travel/page-visits"),
 ]
