@@ -2,16 +2,15 @@ from flask_restful import Resource
 from flask import request
 from models.user import Users
 from bson.objectid import ObjectId
+from managers.auth import auth, _get_token_from_request
 import json
+from models.TraderProject import TraderProject
 
 class GetUser(Resource):
     def get(self, user_id):
-        print('show me the user id', user_id)
         user_id_mongo = ObjectId(user_id)
         user = Users.objects(id=user_id_mongo).first()
-        print('show me the fetched user', user)
         user_data = user.email.split('@')[0]
-        print('show me the user data', user_data)
         if user:
             res = {"message": "User found", "user": user_data}
             return res, 200
@@ -81,3 +80,24 @@ class GetUserRole(Resource):
         user_id_mongo = ObjectId(user_id)
         user = Users.objects(id=user_id_mongo).first()
         return user.role, 200
+
+
+class GetUserData(Resource):
+    @auth.login_required
+    def get(self):
+        token = _get_token_from_request()
+        user_id = auth.current_user().id
+        
+        if not token or token == 'null' or token == 'undefined' or token.strip() == '':
+            return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
+
+        user_id_mongo = ObjectId(user_id)
+        user = Users.objects(id=user_id_mongo).first()
+        print('show me the user in here', user.id)
+        print('show me the user_id type', type(user_id))
+        trader_projec = TraderProject.objects(userId=str(user_id)).first()
+
+    
+        print('show me the trader project in here', trader_projec.postcode)
+
+        return  trader_projec.postcode, 200

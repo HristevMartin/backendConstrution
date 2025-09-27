@@ -24,6 +24,7 @@ from resources.Payments import PayWithStripe, CheckPaymentStatus
 from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
 from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 from resources.JobApplicationCounter import JobApplicationCounterResource
+from resources.User import GetUserData
 
 
 routes = [
@@ -37,6 +38,7 @@ routes = [
     (SaveTraderProject, "/travel/save-trader-project"),
     (GetTraderProject, "/travel/get-trader-project/<user_id>"),
     (GetUserRole, "/travel/get-user-role"),
+    (GetUserData, "/travel/get-user-data"),
     (GetAllClientProjects, "/travel/get-all-client-projects"),
     (PayWithStripe, "/api/payments/create-intent"),
     (CheckPaymentStatus, "/api/payments/check-payment-status/<user_id>/<job_id>"),
