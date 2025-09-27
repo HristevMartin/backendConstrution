@@ -12,9 +12,8 @@ class JobApplicationCounterResource(Resource):
     def post(self, job_id):
         job = JobCounterModel.objects(job_id=job_id).first()
         if not job:
-            job = JobCounterModel(job_id=job_id, applied_count=1).save()
+            job = JobCounterModel(job_id=job_id, applied_count=1)
         else:
             job.applied_count += 1
-        job.applied_count += 1
         job.save()
         return {"count": job.applied_count}

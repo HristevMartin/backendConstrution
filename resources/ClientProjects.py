@@ -9,6 +9,8 @@ import uuid
 import requests
 from datetime import datetime
 from managers.auth import auth, _get_token_from_request
+from models.user import Users
+
 
 def fetch_nuts_from_postcode(postcode):
     """
@@ -472,8 +474,13 @@ class GetAllClientProjects(Resource):
             token = _get_token_from_request()
             if not token:
                 return {"error": "Token is required"}, 401
-            
-            print(f"Extracted token: '{token}'") 
+
+            user_id = auth.current_user().id  # depends on your auth
+            trader = Users.objects(id=user_id).first()
+
+            if not trader:
+                return {"error": "User profile not found"}, 404
+
             
             if not token or token == 'null' or token == 'undefined' or token.strip() == '':
                 return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
