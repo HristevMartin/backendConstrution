@@ -23,6 +23,7 @@ from resources.TraderProjects import SaveTraderProject, GetTraderProject
 from resources.Payments import PayWithStripe, CheckPaymentStatus
 from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
 from resources.track_visits import SimplePageTrackingResource, GetPageVisits
+from resources.JobApplicationCounter import JobApplicationCounterResource
 
 
 routes = [
@@ -49,4 +50,5 @@ routes = [
     (GetSession, "/travel/auth/session"),
     (SimplePageTrackingResource, "/travel/track-visit"),
     (GetPageVisits, "/travel/page-visits"),
+    (JobApplicationCounterResource, "/travel/job-application-counter/<job_id>"),
 ]

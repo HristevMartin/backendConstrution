@@ -15,7 +15,7 @@ class PayWithStripe(Resource):
             data = request.get_json(force=True) or {}
 
             job_id = data.get("job_id")
-            user_id = data.get("user_id")            # trader_id in model
+            user_id = data.get("user_id")            
             application_text = data.get("application_text")
 
             if not job_id:
