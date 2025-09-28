@@ -9,6 +9,11 @@ import uuid
 import requests
 from datetime import datetime
 from managers.auth import auth, _get_token_from_request
+from models.user import Users
+from models.TraderProject import TraderProject
+from services.recommendation_engine import ProjectRecommendationEngine
+from services.recommendation_engine import UserService
+
 
 def fetch_nuts_from_postcode(postcode):
     """
@@ -472,23 +477,54 @@ class GetAllClientProjects(Resource):
             token = _get_token_from_request()
             if not token:
                 return {"error": "Token is required"}, 401
-            
-            print(f"Extracted token: '{token}'") 
+
+            user_id = auth.current_user().id  # depends on your auth
+            trader_user_id = Users.objects(id=user_id).first().id
+
+            # Convert ObjectId to string for TraderProject query
+            trader_user_profile_id = TraderProject.objects(userId=str(trader_user_id)).first()
+
+            if not trader_user_profile_id:
+                return {"error": "Trader profile not found"}, 404
+                
+            user_postcode = trader_user_profile_id.postcode
+
             
             if not token or token == 'null' or token == 'undefined' or token.strip() == '':
                 return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
-            print(f"Token received: {token[:20]}...") 
-            
+
             
             projects = ClientProject.objects()
             projects_list = [project.to_dict() for project in projects]
+            project_list_postcode_filtered = [project['postcode'] for project in projects_list if project['postcode']]
             
+            res = self.get_recommendations(trader_user_profile_id, projects_list)
+            print('show me the res in here', res)
+            print('show me the projects list in here', projects_list)
+
             return {
                 "success": True,
-                "projects": projects_list,
+                "projects": res,
                 "message": "Client projects retrieved successfully"
             }, 200
             
         except Exception as e:
             print(f"Error in GetAllClientProjects: {str(e)}")
             return {"error": f"Failed to retrieve client projects: {str(e)}"}, 500
+
+
+    def get_recommendations(self, trader_user_profile_id, projects_list):
+        recommendation_engine = ProjectRecommendationEngine()
+        user_service = UserService()
+
+        user_preferences = user_service.get_user_preferences(trader_user_profile_id)
+
+        user_postcode = trader_user_profile_id.postcode 
+
+        recommendations = recommendation_engine.get_user_recommendations(
+        user_postcode, 
+        projects_list,
+        user_preferences
+        )
+        
+        return recommendations['immediate_nearby']
