@@ -98,6 +98,39 @@ class GetUserData(Resource):
         trader_projec = TraderProject.objects(userId=str(user_id)).first()
 
     
-        print('show me the trader project in here', trader_projec.postcode)
+        res = {
+            "postcode": trader_projec.postcode,
+            "radiusKm": trader_projec.radiusKm,
+        }
 
-        return  trader_projec.postcode, 200
+        return  res, 200
+
+
+class PostUserRadiusKm(Resource):
+    @auth.login_required
+    def post(self):
+        print('in here ee')
+        data = request.get_json()
+        print('show me the data in here', data)
+        user_id = auth.current_user().id
+        user_id_mongo = str(user_id)
+        print('show me the user_id_mongo in here', user_id_mongo)
+        user_radius_miles = data.get('radiusKm')
+
+        # Convert miles to kilometers (1 mile = 1.60934 km)
+        try:
+            user_radius_km = float(user_radius_miles) * 1.60934 if user_radius_miles is not None else None
+        except (ValueError, TypeError):
+            return {"error": "Invalid radius value provided."}, 400
+
+        print('show me the user_radius_km in here', user_radius_km)
+
+        trader_profile = TraderProject.objects(userId=user_id_mongo).first()
+
+        if not trader_profile:
+            return {"error": "Trader profile not found."}, 404
+
+        trader_profile.radiusKm = str(user_radius_km)
+        trader_profile.save()
+
+        return {"message": "User data saved successfully", "radiusKm": trader_profile.radiusKm}, 200
