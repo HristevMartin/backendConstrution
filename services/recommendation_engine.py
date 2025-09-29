@@ -72,7 +72,7 @@ class ProjectRecommendationEngine:
         
         # Merge user preferences with defaults
         prefs = {**default_preferences, **(user_preferences or {})}
-        
+        print('show me here prefs', prefs)
         recommendations = {
             'immediate_nearby': []
         }
@@ -83,6 +83,7 @@ class ProjectRecommendationEngine:
             
             # Calculate distance
             distance = self.get_postcode_distance(user_postcode, project.get('postcode', ''))
+            print('show me here distance', distance)
             project_copy['distance_miles'] = distance
             
             # Skip projects outside max radius
@@ -124,7 +125,8 @@ class UserService:
         # Convert radiusKm to miles (1 km = 0.621371 miles)
         radius_km = float(getattr(trader_profile, 'radiusKm', 15))  # Default 15km if not set
         radius_miles = round(radius_km * 0.621371, 1)
-        
+        print('show me the radius_miles in here', radius_miles)
+
         return {
             'max_radius_miles': radius_miles,
             'preferred_radius_miles': radius_miles,  # Use same value for both

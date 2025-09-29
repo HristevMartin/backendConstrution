@@ -425,6 +425,40 @@ class EditClientProject(Resource):
                     print(f"Error initializing GCS handler: {str(e)}")
                     return {"error": "Failed to initialize cloud storage"}, 500
             
+            # Handle image deletion first
+            images_to_delete = data.get('images_to_delete', '')
+            if images_to_delete:
+                # Handle both single image (string) and multiple images (comma-separated)
+                if isinstance(images_to_delete, str):
+                    delete_urls = [url.strip() for url in images_to_delete.split(',') if url.strip()]
+                else:
+                    delete_urls = images_to_delete if isinstance(images_to_delete, list) else []
+                
+                # Delete images from Google Cloud Storage first
+                try:
+                    gcs_handler = GCSHandler()
+                    for image_url in delete_urls:
+                        try:
+                            # Use the existing delete_file method which handles URL parsing
+                            deletion_success = gcs_handler.delete_file(image_url)
+                            if deletion_success:
+                                print(f"Successfully deleted from GCS: {image_url}")
+                            else:
+                                print(f"Failed to delete from GCS: {image_url}")
+                        except Exception as e:
+                            print(f"Error deleting image from GCS {image_url}: {str(e)}")
+                            # Continue with other deletions even if one fails
+                            continue
+                except Exception as e:
+                    print(f"Error initializing GCS handler for deletion: {str(e)}")
+                    # Continue with database update even if GCS deletion fails
+
+                existing_images = project.image_urls or []
+                # Remove images that are in the delete list from database
+                project.image_urls = [url for url in existing_images if url not in delete_urls]
+                print(f"Deleted {len(delete_urls)} images from database: {delete_urls}")
+                print(f"Remaining images: {len(project.image_urls)}")
+
             # Handle image update strategy
             replace_images = data.get('replaceImages', 'false').lower() == 'true'
             
@@ -439,6 +473,9 @@ class EditClientProject(Resource):
                 project.image_urls = existing_images + new_image_urls
                 project.image_count = len(project.image_urls)
                 print(f"Added {len(new_image_urls)} new images to existing {len(existing_images)} images")
+            else:
+                # Update image count even if no new images (in case of deletions)
+                project.image_count = len(project.image_urls or [])
             
             # Save the updated project
             project.save()
