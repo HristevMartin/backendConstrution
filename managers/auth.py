@@ -41,7 +41,6 @@ auth = HTTPTokenAuth(scheme="Bearer")
 
 def _get_token_from_request() -> str | None:
     tok = request.cookies.get(COOKIE_NAME)
-    print('in here the token is', tok)
     if tok:
         return tok
 
