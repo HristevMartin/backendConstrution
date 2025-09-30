@@ -25,6 +25,7 @@ from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetC
 from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 from resources.JobApplicationCounter import JobApplicationCounterResource
 from resources.User import GetUserData, PostUserRadiusKm
+from resources.ai_helper import AIHelper
 
 
 routes = [
@@ -54,4 +55,5 @@ routes = [
     (SimplePageTrackingResource, "/travel/track-visit"),
     (GetPageVisits, "/travel/page-visits"),
     (JobApplicationCounterResource, "/travel/job-application-counter/<job_id>"),
+    (AIHelper, "/travel/ai-helper"),
 ]
