@@ -25,6 +25,7 @@ ALLOWED_CATEGORIES = [
     "Cleaning",
     "Removals",
     "Handyman",
+    "Mechanic",
 ]
 
 SYSTEM_PROMPT = (
