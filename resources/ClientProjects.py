@@ -121,25 +121,40 @@ class ClientProjects(Resource):
             # Add image URLs to form data
             form_data['image_urls'] = image_urls
             
-            # Check if location is London and fetch NUTS area from postcode
+            # Handle location logic based on new UI flow
             location = form_data.get('location', '').strip()
             postcode = form_data.get('postcode', '').strip()
+            area = form_data.get('area', '').strip()
             
+            # If area is provided (non-London location), use it as the location
+            if area and not location:
+                form_data['location'] = area
+                location = area
+                print(f"Using area as location: {area}")
+            
+            # Check if location is London and fetch NUTS area from postcode
             if location.lower() == 'london' and postcode:
                 print(f"Location is London and postcode provided: {postcode}")
                 nuts = fetch_nuts_from_postcode(postcode)
                 form_data['nuts'] = nuts
+                form_data['postcode'] = postcode
                 print(f"Added NUTS area to form data: {nuts}")
             elif location.lower() == 'london' and not postcode:
                 print(f"Location is London but no postcode provided, using fallback 'London'")
                 form_data['nuts'] = 'London'
             else:
-                print(f"Location is not London ({location}) or no postcode provided ({postcode})")
+                # For non-London locations, use the area/location as nuts
+                print(f"Non-London location: {location}")
+                form_data['nuts'] = location or area or ''
+                # Clear postcode for non-London locations if not provided
+                if not postcode:
+                    form_data['postcode'] = ''
             
             print('Final form data:', {
                 'project_id': project_id,
                 'email': form_data.get('email', 'N/A'),
                 'image_count': len(image_urls),
+                'area': area,
                 'location': location,
                 'postcode': postcode,
                 'nuts': form_data.get('nuts', 'N/A')
