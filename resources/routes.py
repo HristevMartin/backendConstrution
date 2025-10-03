@@ -26,7 +26,7 @@ from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 from resources.JobApplicationCounter import JobApplicationCounterResource
 from resources.User import GetUserData, PostUserRadiusKm
 from resources.ai_helper import AIHelper, AITraderHelper
-
+from resources.ClientCompletedJobs import GetClientCompletedJobs
 
 routes = [
     (Register, "/travel/register"),
@@ -56,5 +56,6 @@ routes = [
     (GetPageVisits, "/travel/page-visits"),
     (JobApplicationCounterResource, "/travel/job-application-counter/<job_id>"),
     (AIHelper, "/travel/ai-helper"),
-    (AITraderHelper, "/travel/trader-helper")
+    (AITraderHelper, "/travel/trader-helper"),
+    (GetClientCompletedJobs, "/travel/get-client-completed-jobs/<job_id>")
 ]

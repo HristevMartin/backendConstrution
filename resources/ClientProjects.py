@@ -13,6 +13,7 @@ from models.user import Users
 from models.TraderProject import TraderProject
 from services.recommendation_engine import ProjectRecommendationEngine
 from services.recommendation_engine import UserService
+from models.UserTracker import ClientUserCompletedJobs
 
 
 def fetch_nuts_from_postcode(postcode):
@@ -52,11 +53,6 @@ def fetch_nuts_from_postcode(postcode):
 class ClientProjects(Resource):
     def post(self):
         try:
-            print("Request content type:", request.content_type)
-            print("Form data:", dict(request.form))
-            print("Files received:", len(request.files.getlist('images')))
-            
-            # Generate unique project ID
             project_id = str(uuid.uuid4())
             print(f"Generated project ID: {project_id}")
             
@@ -149,6 +145,8 @@ class ClientProjects(Resource):
                 # Clear postcode for non-London locations if not provided
                 if not postcode:
                     form_data['postcode'] = ''
+
+            
             
             print('Final form data:', {
                 'project_id': project_id,
@@ -164,6 +162,28 @@ class ClientProjects(Resource):
             try:
                 project = ClientProject.create_project(form_data, image_urls)
                 project.save()
+
+                print('show me in here what is the project id', project.project_id)
+                print('show me in here what is the project id', project.id)
+                print('show me in here what is the project id', project.user_id)
+                client_tracker = ClientUserCompletedJobs(
+                id=str(uuid.uuid4()),
+                userId=project.user_id,
+                jobId=project.project_id,
+                completed_jobs=0,
+                cancelled_jobs=0,
+                posted_jobs=1,
+                last_completed_at=datetime.utcnow(),
+                first_posted_at=datetime.utcnow(),
+                response_rate=0,
+                reliable=False,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+                )
+                
+                client_tracker.save()
+
+                print('its passing here')
                 
                 print(f'Project saved to database successfully with ID: {project.project_id}')
                 
@@ -512,9 +532,16 @@ class EditClientProject(Resource):
         """Delete a specific client project by project_id"""
         try:
             project = ClientProject.get_by_project_id(project_id)
-            if not project:
-                return {"error": "Project not found"}, 404
+
+            print('show me in here what is the project id', project_id)
+            client_tracker = ClientUserCompletedJobs.objects(jobId=project_id).first()
+            print('show me in here what is the client tracker', client_tracker)
+            client_tracker.cancelled_jobs += 1
+            client_tracker.posted_jobs -= 1
+            client_tracker.save()
+
             project.delete()
+
             return {"success": True, "message": "Project deleted successfully"}, 200
         except Exception as e:
             print(f"Error deleting project {project_id}: {str(e)}")
