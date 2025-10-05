@@ -18,7 +18,7 @@ from resources.TraderProject import GetProjectByID
 from resources.TraderForm import GetProfileByID
 from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
-from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject, GetAllClientProjects
+from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject, GetAllClientProjects, DeleteClientProjectId
 from resources.TraderProjects import SaveTraderProject, GetTraderProject
 from resources.Payments import PayWithStripe, CheckPaymentStatus
 from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
@@ -26,7 +26,8 @@ from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 from resources.JobApplicationCounter import JobApplicationCounterResource
 from resources.User import GetUserData, PostUserRadiusKm
 from resources.ai_helper import AIHelper, AITraderHelper
-from resources.ClientCompletedJobs import GetClientCompletedJobs
+from resources.ClientCompletedJobs import GetClientCompletedJobs, GetAllClientStatusProjects
+
 
 routes = [
     (Register, "/travel/register"),
@@ -36,6 +37,7 @@ routes = [
     (ClientProjects, "/travel/save-client-project"),
     (GetClientProject, "/travel/get-client-project/<project_id>"),
     (EditClientProject, "/travel/edit-client-project/<project_id>"),
+    (DeleteClientProjectId, "/travel/delete-client-project/<project_id>"),
     (SaveTraderProject, "/travel/save-trader-project"),
     (GetTraderProject, "/travel/get-trader-project/<user_id>"),
     (GetUserRole, "/travel/get-user-role"),
@@ -57,5 +59,6 @@ routes = [
     (JobApplicationCounterResource, "/travel/job-application-counter/<job_id>"),
     (AIHelper, "/travel/ai-helper"),
     (AITraderHelper, "/travel/trader-helper"),
-    (GetClientCompletedJobs, "/travel/get-client-completed-jobs/<job_id>")
+    (GetClientCompletedJobs, "/travel/get-client-completed-jobs/<job_id>"),
+    (GetAllClientStatusProjects, "/travel/get-all-client-status-projects")
 ]
