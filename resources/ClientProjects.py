@@ -298,21 +298,13 @@ class EditClientProject(Resource):
     def put(self, project_id):
         """Edit a specific client project by project_id"""
         try:
-            print(f"Editing project {project_id}")
-            print(f"Request content type: {request.content_type}")
-            print("Form data:", dict(request.form))
-            print("Files received:", len(request.files.getlist('new_images')))
-            
-            # Handle both JSON and form data
             if request.is_json:
                 data = request.get_json()
-                print("JSON data received:", data)
             else:
                 # Handle form data
                 data = {}
                 for key in request.form:
                     data[key] = request.form[key]
-                print("Form data received:", data)
             
             # Extract userId from form data (sent from frontend auth)
             user_id = data.get('userId')
@@ -378,6 +370,41 @@ class EditClientProject(Resource):
             if 'status' in data:
                 project.status = data['status']
                 print(f"Updated status: {data['status']}")
+                
+                # Update ClientUserCompletedJobs if status is completed
+                if data['status'].lower() == 'completed':
+                    try:
+                        client_tracker = ClientUserCompletedJobs.objects(jobId=project_id).first()
+                        if client_tracker:
+                            client_tracker.completed_jobs = 1
+                            client_tracker.cancelled_jobs = 0
+                            client_tracker.posted_jobs = 0
+                            client_tracker.last_completed_at = datetime.utcnow()
+                            client_tracker.updated_at = datetime.utcnow()
+                            client_tracker.save()
+                            print(f"Marked job {project_id} as completed in ClientUserCompletedJobs")
+                        else:
+                            print(f"No ClientUserCompletedJobs record found for job {project_id}")
+                    except Exception as e:
+                        print(f"Error updating ClientUserCompletedJobs: {str(e)}")
+                
+                # Update ClientUserCompletedJobs if status is cancelled
+                elif data['status'].lower() == 'cancelled':
+                    try:
+                        client_tracker = ClientUserCompletedJobs.objects(jobId=project_id).first()
+                        if client_tracker:
+                            client_tracker.cancelled_jobs = 1
+                            client_tracker.completed_jobs = 0
+                            client_tracker.posted_jobs = 0
+                            client_tracker.updated_at = datetime.utcnow()
+                            client_tracker.save()
+                            print(f"Marked job {project_id} as cancelled in ClientUserCompletedJobs")
+                        else:
+                            print(f"No ClientUserCompletedJobs record found for job {project_id}")
+                    except Exception as e:
+                        print(f"Error updating ClientUserCompletedJobs: {str(e)}")
+
+                        
             if 'country' in data:
                 project.country = data['country']
                 print(f"Updated country: {data['country']}")
@@ -417,9 +444,7 @@ class EditClientProject(Resource):
                         project.additional_data[key] = value
                         print(f"Updated additional_data['{key}']: {value} (compatibility)")
             
-            print(f"After update - New location: {project.location}")
-            print(f"After update - New job_title: {project.job_title}")
-            print(f"Updated additional_data: {project.additional_data}")
+            print('ive been called here')
             
             # Handle image uploads (like in save endpoint)
             project_images = request.files.getlist('new_images')
@@ -430,7 +455,6 @@ class EditClientProject(Resource):
                     # Initialize GCS handler
                     gcs_handler = GCSHandler()
                     
-                    print(f'Uploading {len(project_images)} new images for user: {user_id}')
                     
                     for image in project_images:
                         if image and image.filename != '':
@@ -546,6 +570,19 @@ class EditClientProject(Resource):
         except Exception as e:
             print(f"Error deleting project {project_id}: {str(e)}")
             return {"error": f"Failed to delete project: {str(e)}"}, 500
+
+
+class DeleteClientProjectId(Resource):
+    def delete(self, project_id):
+        """Delete a specific client project by project_id"""
+        try:
+            project = ClientProject.get_by_project_id(project_id)
+            project.delete()
+            return {"success": True, "message": "Project deleted successfully"}, 200
+        except Exception as e:
+            print(f"Error deleting project {project_id}: {str(e)}")
+            return {"error": f"Failed to delete project: {str(e)}"}, 500
+
 
 
 class GetAllClientProjects(Resource):
