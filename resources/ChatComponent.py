@@ -475,15 +475,17 @@ class ChatSummary(Resource):
                     "updated_at": conv.updated_at.isoformat(),
                     "unread_count": uc, 
                 })
-
-            return {
+            res = {
                 "success": True,
                 "user_id": user_id,
                 "conversations": conversation_list,
                 "count": len(conversation_list),
-                "unread_total": unread_total,   # << for navbar badge
+                "unread_total": unread_total,   
                 "has_chats": len(conversation_list) > 0
-            }, 200
+            }
+
+            print('ailqk', res)
+            return res, 200
 
         except Exception as e:
             print(f"Error getting chat summary: {str(e)}")
