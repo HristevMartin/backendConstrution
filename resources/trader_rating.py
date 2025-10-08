@@ -26,7 +26,7 @@ class TraderRating(Resource):
                 trader = TraderProject.objects(userId=conv.trader_id).first()
                 
                 # Get job/project details
-                job = ClientProject.objects(project_id=conv.job_id).first()
+                job = ClientProject.objects(project_id=conv.job_id, is_deleted=False).first()
                 
                 # Get last message
                 last_message = Message.objects(conversation_id=conv.conversation_id).order_by('-created_at').first()
@@ -201,7 +201,7 @@ class PastJobs(Resource):
                 
                 # Enrich with job details
                 try:
-                    job = ClientProject.objects(project_id=rating.jobId).first()
+                    job = ClientProject.objects(project_id=rating.jobId, is_deleted=False).first()
                     if job:
                         rating_data['job_title'] = job.job_title
                         rating_data['job_description'] = job.job_description
@@ -238,3 +238,70 @@ class PastJobs(Resource):
                 "error": str(e),
                 "message": "Failed to retrieve past jobs"
             }, 500
+
+
+class GetTraderRating(Resource):
+    @auth.login_required
+    def get(self):
+        user_id = str(auth.current_user().id)
+        
+        trader_profile = TraderProject.objects(userId=user_id).first()
+        is_trader = trader_profile is not None
+        
+        if is_trader:
+            trader_rating = TraderRatingModel.objects(userId=user_id).all()
+            user_type = "trader"
+        else:
+            trader_rating = TraderRatingModel.objects(homeownerId=user_id).all()
+            user_type = "homeowner"
+        
+        print(f'User type: {user_type}, Found {trader_rating.count()} ratings')
+
+        total_rating = 0
+        count = 0
+        comments_list = []
+
+        for rating in trader_rating:
+            if rating.rating is not None:
+                total_rating += int(rating.rating)
+                count += 1
+            
+            if rating.comment:
+                comment_obj = {
+                    "comment": rating.comment,
+                    "rating": int(rating.rating) if rating.rating is not None else None,
+                    "createdDate": rating.createdDate.isoformat() if getattr(rating, "createdDate", None) else None,
+                    "job_description": "",
+                    "job_title": "",
+                    "first_name": ""
+                }
+                
+                try:
+                    job = ClientProject.objects(project_id=rating.jobId).first()
+                    if job:
+                        comment_obj["job_description"] = job.job_description or ""
+                        comment_obj["job_title"] = job.job_title or ""
+                        comment_obj["first_name"] = job.first_name or ""
+                    else:
+                        print(f"No job found for jobId: {rating.jobId}")
+                except Exception as e:
+                    print(f"Error fetching job details for rating {rating.jobId}: {str(e)}")
+                
+                if is_trader:
+                    try:
+                        trader = TraderProject.objects(userId=rating.userId).first()
+                        if trader:
+                            comment_obj["trader_name"] = trader.name
+                    except Exception as e:
+                        print(f"Error fetching trader info: {str(e)}")
+                
+                comments_list.append(comment_obj)
+
+        average_rating = round(total_rating / count, 2) if count > 0 else None
+        return {
+            "success": True,
+            "user_type": user_type,
+            "rating": float(average_rating) if average_rating is not None else 0.0,
+            "total_ratings": int(count),
+            "comments": comments_list
+        }, 200

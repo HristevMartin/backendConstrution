@@ -179,7 +179,7 @@ class CreateChat(Resource):
             
             # Retrieve homeowner_id from the job/project
             try:
-                project = ClientProject.objects(project_id=job_id).first()
+                project = ClientProject.objects(project_id=job_id, is_deleted=False).first()
                 if not project:
                     return {
                         "error": f"Project not found with jobId: {job_id}",
@@ -287,7 +287,7 @@ class GetAllChats(Resource):
                 """Get homeowner info from ClientProject when viewer is trader"""
                 try:
                     # Fetch the ClientProject using job_id to get homeowner details
-                    project = ClientProject.objects(project_id=job_id).first()
+                    project = ClientProject.objects(project_id=job_id, is_deleted=False).first()
                     if project and project.first_name:
                         name = project.first_name
                         job_title = project.job_title if project.job_title else "Unknown"
@@ -484,7 +484,6 @@ class ChatSummary(Resource):
                 "has_chats": len(conversation_list) > 0
             }
 
-            print('ailqk', res)
             return res, 200
 
         except Exception as e:

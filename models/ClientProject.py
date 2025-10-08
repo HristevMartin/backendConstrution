@@ -41,6 +41,9 @@ class ClientProject(Document):
     status = StringField(max_length=20, default='pending', 
                         choices=['pending', 'contacted', 'quoted', 'accepted', 'completed', 'cancelled'])
     
+    # Soft delete flag
+    is_deleted = BooleanField(default=False)
+    
     # GDPR compliance
     gdpr_consent = BooleanField(default=False)
     
@@ -58,9 +61,9 @@ class ClientProject(Document):
             'status',
             'location',
             'country',
-            'service_category'
+            'service_category',
+            'is_deleted'
         ],
-        # 'strict': False  # Allow fields not defined in the model
     }
     
     def save(self, *args, **kwargs):
@@ -126,36 +129,36 @@ class ClientProject(Document):
     
     @classmethod 
     def get_by_project_id(cls, project_id):
-        """Get project by project_id"""
+        """Get project by project_id (excluding soft-deleted)"""
         try:
-            return cls.objects(project_id=project_id).first()
+            return cls.objects(project_id=project_id, is_deleted=False).first()
         except Exception as e:
             print(f"Error fetching project {project_id}: {str(e)}")
             return None
     
     @classmethod
     def get_by_user_id(cls, user_id):
-        """Get all projects by user_id"""
+        """Get all projects by user_id (excluding soft-deleted)"""
         try:
-            return cls.objects(user_id=user_id).order_by('-created_at')
+            return cls.objects(user_id=user_id, is_deleted=False).order_by('-created_at')
         except Exception as e:
             print(f"Error fetching projects for user {user_id}: {str(e)}")
             return []
     
     @classmethod
     def get_by_email(cls, email):
-        """Get all projects by email"""
+        """Get all projects by email (excluding soft-deleted)"""
         try:
-            return cls.objects(email=email).order_by('-created_at')
+            return cls.objects(email=email, is_deleted=False).order_by('-created_at')
         except Exception as e:
             print(f"Error fetching projects for email {email}: {str(e)}")
             return []
     
     @classmethod
     def get_recent_projects(cls, limit=50):
-        """Get recent projects"""
+        """Get recent projects (excluding soft-deleted)"""
         try:
-            return cls.objects().order_by('-created_at').limit(limit)
+            return cls.objects(is_deleted=False).order_by('-created_at').limit(limit)
         except Exception as e:
             print(f"Error fetching recent projects: {str(e)}")
             return []
