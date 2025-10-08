@@ -27,7 +27,8 @@ from resources.JobApplicationCounter import JobApplicationCounterResource
 from resources.User import GetUserData, PostUserRadiusKm
 from resources.ai_helper import AIHelper, AITraderHelper
 from resources.ClientCompletedJobs import GetClientCompletedJobs, GetAllClientStatusProjects
-from resources.trader_rating import TraderRating
+from resources.trader_rating import TraderRating, PastJobs
+
 
 
 routes = [
@@ -62,5 +63,6 @@ routes = [
     (AITraderHelper, "/travel/trader-helper"),
     (GetClientCompletedJobs, "/travel/get-client-completed-jobs/<job_id>"),
     (GetAllClientStatusProjects, "/travel/get-all-client-status-projects"),
-    (TraderRating, "/travel/get-trader-completed-job")
+    (TraderRating, "/travel/get-trader-completed-job"),
+    (PastJobs, "/travel/past-jobs")
 ]
