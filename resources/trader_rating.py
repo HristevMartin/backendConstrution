@@ -162,3 +162,79 @@ class TraderRating(Resource):
                 "success": False,
                 "error": f"Failed to save rating: {str(e)}"
             }, 500
+
+
+class PastJobs(Resource):
+    @auth.login_required
+    def get(self):
+        try:
+            user_id = str(auth.current_user().id)
+            print('show me the user_id', user_id)
+            
+            # Check if user is a trader by checking if TraderProject exists
+            trader_profile = TraderProject.objects(userId=user_id).first()
+            is_trader = trader_profile is not None
+            
+            # Query ratings based on user type
+            if is_trader:
+                # Trader: get ratings where they are the service provider (userId)
+                ratings = TraderRatingModel.objects(userId=user_id)
+                user_type = "trader"
+                print(f'User is a trader. Found {ratings.count()} ratings received')
+            else:
+                # Homeowner: get ratings where they are the client (homeownerId)
+                ratings = TraderRatingModel.objects(homeownerId=user_id)
+                user_type = "homeowner"
+                print(f'User is a homeowner. Found {ratings.count()} ratings given')
+            
+            ratings_list = []
+            for rating in ratings:
+                rating_data = {
+                    'userId': rating.userId,
+                    'homeownerId': rating.homeownerId,
+                    'jobId': rating.jobId,
+                    'rating': rating.rating,
+                    'comment': rating.comment,
+                    'createdDate': rating.createdDate.isoformat() if rating.createdDate else None,
+                    'updatedDate': rating.updatedDate.isoformat() if rating.updatedDate else None
+                }
+                
+                # Enrich with job details
+                try:
+                    job = ClientProject.objects(project_id=rating.jobId).first()
+                    if job:
+                        rating_data['job_title'] = job.job_title
+                        rating_data['job_description'] = job.job_description
+                        rating_data['location'] = job.location
+                        rating_data['job_status'] = job.status
+                except Exception as e:
+                    print(f"Error fetching job details for {rating.jobId}: {str(e)}")
+                    rating_data['job_title'] = "Unknown"
+                
+                # Enrich with trader details (useful for homeowners)
+                if not is_trader:
+                    try:
+                        trader = TraderProject.objects(userId=rating.userId).first()
+                        if trader:
+                            rating_data['trader_name'] = trader.name
+                            rating_data['trader_trade'] = trader.primaryTrade
+                    except Exception as e:
+                        print(f"Error fetching trader details for {rating.userId}: {str(e)}")
+                
+                ratings_list.append(rating_data)
+            
+            return {
+                "success": True,
+                "user_type": user_type,
+                "ratings": ratings_list,
+                "total_ratings": len(ratings_list),
+                "message": f"Past jobs retrieved successfully for {user_type}"
+            }, 200
+            
+        except Exception as e:
+            print(f'Error in PastJobs: {str(e)}')
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Failed to retrieve past jobs"
+            }, 500

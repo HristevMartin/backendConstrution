@@ -306,6 +306,12 @@ class EditClientProject(Resource):
                 for key in request.form:
                     data[key] = request.form[key]
             
+            print(f"===== EDIT PROJECT DEBUG =====")
+            print(f"Project ID: {project_id}")
+            print(f"Incoming data keys: {list(data.keys())}")
+            print(f"Full incoming data: {data}")
+            print(f"==============================")
+            
             # Extract userId from form data (sent from frontend auth)
             user_id = data.get('userId')
             if not user_id:
@@ -318,17 +324,19 @@ class EditClientProject(Resource):
             if not project:
                 return {"error": "Project not found"}, 404
             
-            # Update fields if provided
+            # Update fields if provided (skip empty strings to preserve existing data)
             print(f"Before update - Current location: {project.location}")
             print(f"Before update - Current job_title: {project.job_title}")
+            print(f"Before update - Current first_name: {project.first_name}")
+            print(f"Before update - Current email: {project.email}")
             
-            if 'first_name' in data:
+            if 'first_name' in data and data['first_name']:  # Only update if not empty
                 project.first_name = data['first_name']
                 print(f"Updated first_name: {data['first_name']}")
-            if 'email' in data:
+            if 'email' in data and data['email']:  # Only update if not empty
                 project.email = data['email']
                 print(f"Updated email: {data['email']}")
-            if 'phone' in data:
+            if 'phone' in data and data['phone']:  # Only update if not empty
                 project.phone = data['phone']
                 print(f"Updated phone: {data['phone']}")
             if 'contact_method' in data:
@@ -551,6 +559,13 @@ class EditClientProject(Resource):
         except Exception as e:
             print(f"Error editing project {project_id}: {str(e)}")
             return {"error": f"Failed to edit project: {str(e)}"}, 500
+
+
+
+
+
+
+
 
     def delete(self, project_id):
         """Delete a specific client project by project_id"""

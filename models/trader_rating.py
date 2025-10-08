@@ -1,4 +1,4 @@
-from mongoengine import StringField, IntField, DateTimeField
+from mongoengine import Document, StringField, IntField, DateTimeField
 import datetime
 from flask_mongoengine import MongoEngine
 
