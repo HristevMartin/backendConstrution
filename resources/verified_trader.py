@@ -7,6 +7,7 @@ from models.user import Users
 class VerifiedTrader(Resource):
     @auth.login_required
     def get(self, user_id):
+        print('show me the user_id', user_id)
         
         trader_user_id = str(user_id)
         
