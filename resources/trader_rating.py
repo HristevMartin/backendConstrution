@@ -243,17 +243,30 @@ class PastJobs(Resource):
 class GetTraderRating(Resource):
     @auth.login_required
     def get(self):
+        from flask import request
+        
         user_id = str(auth.current_user().id)
+        trader_id = request.args.get('trader_id') 
+        print("being called from the trader rating route") # Optional: to get ratings for a specific trader
         
         trader_profile = TraderProject.objects(userId=user_id).first()
         is_trader = trader_profile is not None
         
         if is_trader:
+            # Trader viewing their own ratings
             trader_rating = TraderRatingModel.objects(userId=user_id).all()
             user_type = "trader"
         else:
-            trader_rating = TraderRatingModel.objects(homeownerId=user_id).all()
-            user_type = "homeowner"
+            # Homeowner viewing ratings
+            if trader_id:
+                # Homeowner viewing ratings for a specific trader
+                trader_rating = TraderRatingModel.objects(homeownerId=user_id, userId=trader_id).all()
+                user_type = "homeowner"
+                print(f'Homeowner viewing ratings for trader: {trader_id}')
+            else:
+                # Homeowner viewing all ratings they've given
+                trader_rating = TraderRatingModel.objects(homeownerId=user_id).all()
+                user_type = "homeowner"
         
         print(f'User type: {user_type}, Found {trader_rating.count()} ratings')
 
