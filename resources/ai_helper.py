@@ -161,7 +161,7 @@ class AITraderHelper(Resource):
             if not job_id:
                 return {"error": "id (job/project_id) is required"}, 400
 
-            client_project = ClientProject.objects(project_id=job_id).first()
+            client_project = ClientProject.objects(project_id=job_id, is_deleted=False).first()
             if not client_project:
                 return {"error": "Client project not found"}, 404
 

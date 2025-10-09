@@ -257,7 +257,7 @@ class ClientProjects(Resource):
         if not user_id:
             return {"error": "user_id is required"}, 400
         
-        projects = ClientProject.objects(user_id=user_id)
+        projects = ClientProject.objects(user_id=user_id, is_deleted=False)
         projects_list = [project.to_dict() for project in projects]
         
         return {
@@ -589,10 +589,15 @@ class EditClientProject(Resource):
 
 class DeleteClientProjectId(Resource):
     def delete(self, project_id):
-        """Delete a specific client project by project_id"""
+        """Soft delete a specific client project by project_id"""
         try:
-            project = ClientProject.get_by_project_id(project_id)
-            project.delete()
+            project = ClientProject.objects(project_id=project_id).first()
+            if not project:
+                return {"error": "Project not found"}, 404
+            
+            project.is_deleted = True
+            project.save()
+            
             return {"success": True, "message": "Project deleted successfully"}, 200
         except Exception as e:
             print(f"Error deleting project {project_id}: {str(e)}")
@@ -625,7 +630,7 @@ class GetAllClientProjects(Resource):
                 return {"error": "Valid token is required. Token cannot be null, undefined, or empty."}, 401
 
             
-            projects = ClientProject.objects()
+            projects = ClientProject.objects(is_deleted=False)
             projects_list = [project.to_dict() for project in projects]
             project_list_postcode_filtered = [project['postcode'] for project in projects_list if project['postcode']]
             
