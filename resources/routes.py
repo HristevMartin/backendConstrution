@@ -29,6 +29,7 @@ from resources.ai_helper import AIHelper, AITraderHelper
 from resources.ClientCompletedJobs import GetClientCompletedJobs, GetAllClientStatusProjects
 from resources.trader_rating import TraderRating, PastJobs, GetTraderRating
 from resources.verified_trader import VerifiedTrader
+from resources.verify_homeowner import CheckVerifiedHomeowner
 
 
 
@@ -67,5 +68,6 @@ routes = [
     (TraderRating, "/travel/get-trader-completed-job"),
     (PastJobs, "/travel/past-jobs"),
     (GetTraderRating, "/travel/get-trader-rating"),
-    (VerifiedTrader, "/travel/check-verified-trader/<user_id>")
+    (VerifiedTrader, "/travel/check-verified-trader/<user_id>"),
+    (CheckVerifiedHomeowner, "/travel/check-verified-homeowner/<job_id>")
 ]
