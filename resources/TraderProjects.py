@@ -311,14 +311,6 @@ class GetTraderProject(Resource):
             # Only include valid fields in the update
             filtered_update_data = {k: v for k, v in update_data.items() if k in valid_fields}
             
-            # Check if there are any valid fields to update
-            if not filtered_update_data:
-                return {
-                    "success": True, 
-                    "message": "No valid fields to update",
-                    "project": project.to_dict()
-                }, 200
-            
             # Find the project to update
             project = TraderProject.objects(userId=user_id).first()
             if not project:
