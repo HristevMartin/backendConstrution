@@ -1,71 +1,59 @@
-# File: services/recommendation_service.py
-
-from datetime import datetime, timedelta  # (keep if used elsewhere)
+from datetime import datetime, timedelta
 import math
 import requests
-from typing import Dict, Tuple, List, Optional
+from collections import defaultdict
+from typing import Dict, Tuple, List 
 
-_COORDS_CACHE: Dict[str, Tuple[float, float]] = {}
 
-MAX_CACHE = 10000
-
-def _put_cache(k: str, v: Optional[Tuple[float, float]]) -> None:
-    if len(_COORDS_CACHE) >= MAX_CACHE:
-        _COORDS_CACHE.pop(next(iter(_COORDS_CACHE)))
-    _COORDS_CACHE[k] = v
 
 class ProjectRecommendationEngine:
     """
     Handles all project recommendation logic including:
-    - Geographic proximity calculations
+    - Geographic proximity calculations (cached + batched)
     - User preference matching
     - Project categorization and ranking
     """
-    
+
     def __init__(self, postcode_api_key=None):
         self.postcode_api_key = postcode_api_key
-        self.base_postcode_url = "https://api.postcodes.io"
+        self.base_postcode_url = "http://api.postcodes.io"
+        # Reuse TCP connections across requests
         self._session = requests.Session()
-        # self._coords_cache: Dict[str, Tuple[float, float]] = {}
+        # Small in-memory cache: { "SW209NP": (lon, lat) }
+        self._coords_cache: Dict[str, Tuple[float, float]] = {}
+
+    # -------------------- helpers: coords & distance --------------------
 
     def _norm_pc(self, postcode: str) -> str:
         """Normalize a postcode to 'SW209NP' (no spaces, uppercase)."""
         return (postcode or "").replace(" ", "").upper()
-
 
     def _get_coords_single(self, pc_norm: str) -> Tuple[float, float]:
         """Get (lon, lat) for a single normalized postcode, with cache."""
         if not pc_norm:
             raise ValueError("empty postcode")
 
-        if pc_norm in _COORDS_CACHE:
-            val = _COORDS_CACHE[pc_norm]
-            if val is None:
-                raise ValueError(f"Unknown postcode (cached): {pc_norm}")   
-            return val
+        # Cache hit
+        if pc_norm in self._coords_cache:
+            return self._coords_cache[pc_norm]
 
+        # Fetch & cache
         r = self._session.get(
             f"{self.base_postcode_url}/postcodes/{pc_norm}",
             timeout=1.5
         )
-
         r.raise_for_status()
         res = r.json()["result"]
-        if not res:
-            _put_cache(pc_norm, None)
-            raise ValueError(f"Unknown postcode: {pc_norm}")
-
         val = (res["longitude"], res["latitude"])
-        _put_cache(pc_norm, val)
+        self._coords_cache[pc_norm] = val
         return val
 
-    
     def _warm_coords_batch(self, pcs_norm: List[str]) -> None:
         """Batch-prefetch coords for up to 100 postcodes at a time."""
         if not pcs_norm:
             return
 
-
+        # Postcodes.io supports up to 100 postcodes per batch call
         for i in range(0, len(pcs_norm), 100):
             chunk = pcs_norm[i:i + 100]
             try:
@@ -80,70 +68,71 @@ class ProjectRecommendationEngine:
                 for item in payload:
                     res = item.get("result")
                     pc = (item.get("query") or "").upper()
-                    print('show me what is the pc', pc)
                     if res and pc:
-                        _put_cache(pc, (res["longitude"], res["latitude"]))
-                    elif pc:
-                        _put_cache(pc, None)
+                        self._coords_cache[pc] = (res["longitude"], res["latitude"])
             except Exception:
+                # Non-fatal: per-item lookups will still work
                 pass
 
-    
     @staticmethod
     def _haversine_miles(lon1, lat1, lon2, lat2) -> float:
-        R = 3958.7613  
+        """Great-circle distance in miles."""
+        R = 3958.7613  # miles
         dlon = math.radians(lon2 - lon1)
         dlat = math.radians(lat2 - lat1)
-        a = (math.sin(dlat/2)**2
-            + math.cos(math.radians(lat1))
-            * math.cos(math.radians(lat2))
-            * math.sin(dlon/2)**2)
+        a = (math.sin(dlat / 2) ** 2
+             + math.cos(math.radians(lat1))
+             * math.cos(math.radians(lat2))
+             * math.sin(dlon / 2) ** 2)
         return 2 * R * math.asin(math.sqrt(a))
 
+    # -------------------- public API used elsewhere --------------------
 
     def get_postcode_distance(self, postcode1, postcode2) -> float:
-        pc1, pc2 = self._norm_pc(postcode1), self._norm_pc(postcode2)
-        if not pc1 or not pc2:
-            return 999.0
-        if pc1 == pc2:
-            return 0.0
+        """
+        Fast distance: cached coords + local Haversine.
+        Falls back to a coarse area heuristic; never blocks response.
+        """
         try:
+            pc1 = self._norm_pc(postcode1)
+            pc2 = self._norm_pc(postcode2)
+            if not pc1 or not pc2:
+                return 999.0
+            if pc1 == pc2:
+                return 0.0
             lon1, lat1 = self._get_coords_single(pc1)
             lon2, lat2 = self._get_coords_single(pc2)
             return round(self._haversine_miles(lon1, lat1, lon2, lat2), 2)
-        except ValueError:
-            return 999.0   # invalid postcode(s)
         except Exception:
-            area1, area2 = pc1[:4], pc2[:4]
+            area1 = self._norm_pc(postcode1)[:4]
+            area2 = self._norm_pc(postcode2)[:4]
             return 0.0 if (area1 and area1 == area2) else 999.0
-   
-    
+
     def get_user_recommendations(self, user_postcode, projects_list, user_preferences=None):
         """
-        Generate personalized recommendations based on user location and preferences
+        Enrich projects with distance; filter by max radius; categorize & sort.
         """
-        # Set default radius preferences
-        default_preferences = {
+        defaults = {
             'max_radius_miles': 25,
             'preferred_radius_miles': 10,
         }
-        
-        # Merge user preferences with defaults
-        prefs = {**default_preferences, **(user_preferences or {})}
+        prefs = {**defaults, **(user_preferences or {})}
 
+        # If trader lacks a postcode, skip geo and just return with distance=None
         if not user_postcode:
             enriched = [{**p, "distance_miles": None} for p in projects_list]
+            # Keep your existing output shape
             return self._sort_and_limit_recommendations({"immediate_nearby": enriched})
 
-
+        # 1) Batch-prefetch unique project postcodes (single HTTP call)
         unique_pcs = sorted({
             self._norm_pc(p.get('postcode', ''))
             for p in projects_list
             if p.get('postcode')
         })
-
         self._warm_coords_batch(unique_pcs)
 
+        # 2) Compute distances locally (no per-row network)
         enriched = []
         for project in projects_list:
             d = self.get_postcode_distance(user_postcode, project.get('postcode', ''))
@@ -151,17 +140,23 @@ class ProjectRecommendationEngine:
             proj['distance_miles'] = d
             enriched.append(proj)
 
-        in_radius = [p for p in enriched
-                if p['distance_miles'] is not None and p['distance_miles'] <= prefs['max_radius_miles']]
+        # 3) Filter and categorize
+        in_radius = [
+            p for p in enriched
+            if p['distance_miles'] is not None and p['distance_miles'] <= prefs['max_radius_miles']
+        ]
 
-        immediate = [p for p in in_radius
-                    if p['distance_miles'] <= prefs['preferred_radius_miles']]
+        immediate_nearby = [
+            p for p in in_radius
+            if p['distance_miles'] <= prefs['preferred_radius_miles']
+        ]
 
-        immediate.sort(key=lambda x: x['distance_miles'])
-        return {"immediate_nearby": immediate}
+        # 4) Sort by distance
+        immediate_nearby.sort(key=lambda x: x['distance_miles'])
 
-    
+        return {"immediate_nearby": immediate_nearby}
 
+    # Keep your existing category sorter so the controller doesn’t change
     def _sort_and_limit_recommendations(self, recommendations):
         recommendations['immediate_nearby'] = sorted(
             recommendations['immediate_nearby'],
@@ -170,23 +165,35 @@ class ProjectRecommendationEngine:
         return recommendations
 
 
-
 class UserService:
     """
     Handles user-related business logic for recommendations
+    (reads trader prefs and normalizes to miles).
     """
-    
+
     @staticmethod
     def get_user_preferences(trader_profile):
-        """Extract user preferences from trader profile"""
-        radius_km = getattr(trader_profile, 'radiusKm', None) or 15
-        radius_km = float(radius_km)
-        radius_km = max(1.0, min(radius_km, 200.0))
+        # Prefer numbers; tolerate strings/nulls
+        raw = getattr(trader_profile, 'radiusKm', None)
+        try:
+            radius_km = float(raw) if raw not in (None, '', 'null', 'undefined') else 15.0
+        except (TypeError, ValueError):
+            radius_km = 15.0
 
+        # Sanity clamp
+        radius_km = max(1.0, min(radius_km, 200.0))
         radius_miles = round(radius_km * 0.621371, 1)
 
         return {
             'max_radius_miles': radius_miles,
-            'preferred_radius_miles': radius_miles,  
+            'preferred_radius_miles': radius_miles,
+            'radius_km': radius_km,  # optional, handy for echoing to UI
         }
-    
+
+    @staticmethod
+    def get_recommendation_explanations(user_postcode, preferences):
+        return {
+            'immediate_nearby': (
+                f"Projects within {preferences['preferred_radius_miles']} miles of {user_postcode}"
+            ),
+        }
