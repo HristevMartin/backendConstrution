@@ -614,10 +614,11 @@ class GetAllClientProjects(Resource):
             if not token:
                 return {"error": "Token is required"}, 401
 
-            user_id = auth.current_user().id  # depends on your auth
+            toggle = request.args.get('toggle', 'off')
+
+            user_id = auth.current_user().id  
             trader_user_id = Users.objects(id=user_id).first().id
 
-            # Convert ObjectId to string for TraderProject query
             trader_user_profile_id = TraderProject.objects(userId=str(trader_user_id)).first()
 
             if not trader_user_profile_id:
@@ -632,11 +633,11 @@ class GetAllClientProjects(Resource):
             
             projects = ClientProject.objects(is_deleted=False)
             projects_list = [project.to_dict() for project in projects]
-            project_list_postcode_filtered = [project['postcode'] for project in projects_list if project['postcode']]
             
-            res = self.get_recommendations(trader_user_profile_id, projects_list)
-            print('show me the res in here', res)
-            print('show me the projects list in here', projects_list)
+            if toggle == 'on':
+                res = self.get_recommendations(trader_user_profile_id, projects_list)
+            else:
+                res = projects_list
 
             return {
                 "success": True,
@@ -650,6 +651,7 @@ class GetAllClientProjects(Resource):
 
 
     def get_recommendations(self, trader_user_profile_id, projects_list):
+        print('in here get_recommendations')
         recommendation_engine = ProjectRecommendationEngine()
         user_service = UserService()
 
