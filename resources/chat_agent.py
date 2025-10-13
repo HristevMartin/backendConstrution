@@ -37,7 +37,7 @@ SYSTEM_PROMPT = (
     "• User says 'notify [name]' → notify_trader\n"
     "• General questions → Politely say: 'I specialize in finding tradespeople. What type of work do you need done?'\n\n"
     
-    "Keep responses under 50 words. British English."
+    "Keep responses under 50 words. British English. Do NOT ask if user wants to notify traders."
 )
 
 # Tool JSON schemas (function-calling)
