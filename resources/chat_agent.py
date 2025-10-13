@@ -29,27 +29,15 @@ ALLOWED_CATEGORIES = [
 ]
 
 SYSTEM_PROMPT = (
-    "You are JOB Hub AI Agent for a UK home-services marketplace.\n"
-    "Objectives:\n"
-    "(1) When the user mentions a specific trade name (e.g., 'plumber', 'electrician', 'carpenter', 'mechanic'), "
-    "whether as a question ('are there any plumbers?') or statement ('I need a plumber'), "
-    "IMMEDIATELY call search_traders with that trade - do NOT ask for confirmation or clarification.\n"
-    "(2) If the user provides ONLY a UK postcode (no other context), call get_job_context first to get the trade, "
-    "then search with that trade and the new postcode.\n"
-    "(3) If the user's request is VAGUE (e.g., 'help with my kitchen', 'need someone', 'fix my house') "
-    "and does NOT mention any trade name, DO NOT assume or use job context. Instead, politely ask "
-    "what type of tradesperson they need (e.g., 'What kind of work do you need? "
-    "For example, plumbing, electrical, carpentry, or something else?').\n"
-    "(4) Present ALL available suggestions (ideally 3–5, minimum 2 if available) as a numbered list with ≤20 word rationales.\n"
-    "(5) Only notify traders with explicit user consent.\n\n"
-    "Rules: British English, concise, never invent trader facts/prices, say 'may apply' not 'will'.\n"
-    "When suggesting, include: name, location/postcode, years if present, distance, and a short rationale.\n\n"
-    "CRITICAL EXAMPLES:\n"
-    "✓ 'are there any plumbers?' → Search for Plumbing immediately\n"
-    "✓ 'I need an electrician' → Search for Electrical immediately\n"
-    "✓ 'show me mechanics' → Search for Mechanic immediately\n"
-    "✗ 'help with my kitchen' → Ask what type of work (no trade mentioned)\n"
-    "Always show multiple traders when available."
+    "You are JOB Hub AI Agent. Your main job is to help users find and notify tradespeople.\n\n"
+    
+    "ACTIONS:\n"
+    "• User mentions trade ('electrician', 'plumber') → search_traders\n"
+    "• User asks 'compare' or 'which is best' → Say: 'Both traders are qualified. Check their profiles and notify whoever suits your needs.'\n"
+    "• User says 'notify [name]' → notify_trader\n"
+    "• General questions → Politely say: 'I specialize in finding tradespeople. What type of work do you need done?'\n\n"
+    
+    "Keep responses under 50 words. British English."
 )
 
 # Tool JSON schemas (function-calling)
@@ -102,17 +90,28 @@ TOOLS = [
 ]
 
 
+def _is_greeting(message: str) -> bool:
+    """Check if message is just a greeting"""
+    msg = message.strip().lower()
+    greetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 
+                 'good evening', 'greetings', 'howdy', 'yo', 'sup']
+    
+    # Check if message is ONLY a greeting (possibly with punctuation)
+    clean_msg = msg.rstrip('!.?')
+    return clean_msg in greetings
+
+
 class UIchatAgent(Resource):
     def post(self):
         """
         Tool-calling agent:
-          - If trade missing -> model asks.
-          - If enough info -> model calls search_traders.
-          - We run the DB search and return candidates; model writes final reply.
+        - If trade missing -> model asks.
+        - If enough info -> model calls search_traders.
+        - We run the DB search and return candidates; model writes final reply.
         Request:
-          { "jobId": "...", "message": "free text", "limit": 5 }
+        { "jobId": "...", "message": "free text", "limit": 5 }
         Response (UI-ready):
-          {
+        {
             "ok": true,
             "turnId": "...",
             "receivedAt": ISO8601,
@@ -120,7 +119,7 @@ class UIchatAgent(Resource):
             "suggestions": [ {traderId, name, trade, city, postcode, distanceKm, experienceYears, verified, badges, image, rationale?} ],
             "nextAction": "NONE" | "SUGGESTIONS_SHOWN" | "AWAIT_NOTIFY_SELECTION",
             "slots": { "trade": "...", "radiusKm": 15 }
-          }
+        }
         """
         try:
             payload = request.get_json(force=True) or {}
@@ -150,19 +149,50 @@ class UIchatAgent(Resource):
                     "slots": {}
                 }, 200
 
-            # Ensure session exists
-            session = _SESSION.get(job_id) or {
-                "slots": {},
-                "lastCandidates": [],
-                "updatedAt": datetime.now(timezone.utc)
-            }
-            _SESSION[job_id] = session
+            if _is_greeting(user_msg):
+                print(f"[UIchatAgent] Greeting detected: '{user_msg}'")
+                # Get job info to personalize greeting
+                job = ClientProject.objects(project_id=job_id, is_deleted=False).first()
+                job_type = "your job"
+                if job:
+                    service = job.service_category or (job.additional_data or {}).get("serviceCategory")
+                    if service:
+                        job_type = f"your {service} job"
+                
+                return {
+                    "ok": True,
+                    "turnId": turn_id,
+                    "receivedAt": ts_iso,
+                    "reply": f"Hello! How can I help with {job_type} today? I can help you find tradespeople, compare options, or answer questions.",
+                    "suggestions": [],
+                    "nextAction": "AWAIT_USER",
+                    "slots": {}
+                }, 200
 
-            # Build initial messages (system + user)
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_envelope(job_id, user_msg, limit)}
-            ]
+            # ========== INITIALIZE OR LOAD SESSION ==========
+            session = _SESSION.get(job_id)
+            if not session:
+                session = {
+                    "slots": {},
+                    "lastCandidates": [],
+                    "messages": [],
+                    "updatedAt": datetime.now(timezone.utc)
+                }
+                _SESSION[job_id] = session
+            # ================================================
+
+            # Build messages with conversation history
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+            # Add previous conversation turns (last 10 messages = 5 full turns)
+            conversation_history = session.get("messages", [])[-4:]
+            messages.extend(conversation_history)
+
+            # Add current user message
+            messages.append({
+                "role": "user", 
+                "content": _build_user_envelope(job_id, user_msg, limit, session)
+            })
 
             # Tool-call loop (max 5 tool interactions per turn)
             tool_results_accumulated = []
@@ -174,7 +204,7 @@ class UIchatAgent(Resource):
                     tools=TOOLS,
                     tool_choice="auto",
                     temperature=0.3,
-                    max_tokens=500,
+                    max_tokens=1000,
                     timeout=30,
                 )
                 msg = resp.choices[0].message
@@ -246,6 +276,8 @@ class UIchatAgent(Resource):
                         else:
                             tool_json = {"ok": False, "error": f"Unknown tool {name}"}
 
+                        
+
                         tool_results_accumulated.append({"name": name, "args": args})
                         messages.append({
                             "role": "tool",
@@ -259,22 +291,58 @@ class UIchatAgent(Resource):
                 # No tool calls → final assistant content
                 print(f"[UIchatAgent] AI provided final response (no more tool calls)")
                 assistant_text = (msg.content or "").strip()
-                
+
+                comparison_keywords = ['best', 'compare', 'comparison', 'pick', 'choose', 
+                       'recommend', 'better', 'which one', 'who should']
+                user_msg_lower = user_msg.lower()
+                is_comparison_query = any(kw in user_msg_lower for kw in comparison_keywords)
+
+                # If comparison query and we have candidates, build response in Python
+                if is_comparison_query and session.get("lastCandidates"):
+                    print("[INFO] Comparison query detected - building response in Python")
+                    built_comparison = _build_comparison_text(session["lastCandidates"])
+                    if built_comparison:
+                        assistant_text = built_comparison
+                        print(f"[INFO] Built comparison response: {len(assistant_text)} chars")
+
                 # Check if this is a clarifying question (no new search performed this turn)
-                # If no search_traders was called in this turn, clear old suggestions
                 search_performed = any(
                     t.get("name") == "search_traders" 
                     for t in tool_results_accumulated
                 )
-                
+
                 if search_performed:
                     # Show the new search results
                     suggestions = session.get("lastCandidates") or []
                     next_action = "SUGGESTIONS_SHOWN" if suggestions else "NONE"
+                elif is_comparison_query:
+                    # For comparison queries, keep showing the existing suggestions
+                    suggestions = session.get("lastCandidates") or []
+                    next_action = "SUGGESTIONS_SHOWN" if suggestions else "NONE"
                 else:
-                    # No search performed - this is a clarifying question, clear old results
+                    # No search performed and not a comparison - clear old results
                     suggestions = []
                     next_action = "NONE"
+                    
+
+                # ========== SAVE CONVERSATION TO SESSION ==========
+                session["messages"].append({
+                    "role": "user",
+                    "content": user_msg
+                })
+
+                session["messages"].append({
+                    "role": "assistant",
+                    "content": assistant_text
+                })
+
+                # Keep only last 20 messages (10 turns) to prevent token overflow
+                if len(session["messages"]) > 12:
+                    session["messages"] = session["messages"][-12:]
+
+                session["updatedAt"] = datetime.now(timezone.utc)
+                _SESSION[job_id] = session
+                # ==================================================
 
                 # Expose minimal slots outward (trade/radiusKm if present)
                 slots_out = {}
@@ -329,7 +397,7 @@ class UIchatAgent(Resource):
                 "suggestions": [],
                 "nextAction": "NONE",
                 "slots": {}
-        }, 200
+            }, 200
 
         except RateLimitError:
             return {"ok": False, "error": "AI is busy. Please try again shortly."}, 429
@@ -340,7 +408,6 @@ class UIchatAgent(Resource):
         except Exception as e:
             print(f"[UIchatAgent][ERROR] {e}")
             return {"ok": False, "error": "Unexpected error"}, 500
-
 
 # =========================
 # Tool implementations
@@ -486,13 +553,35 @@ def _tool_search_traders(jobId: str, trade: str, postcode: str, radiusKm: float,
 # Helpers
 # =========================
 
-def _build_user_envelope(job_id: str, user_msg: str, limit: int) -> str:
-    """Wrap user message with light context for the model."""
-    return json.dumps({
+def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict = None) -> str:
+    """Wrap user message with context for the model, including current suggestions if available."""
+    
+    envelope = {
         "jobId": job_id,
         "message": user_msg,
         "limit": limit
-    })
+    }
+    
+    # Include current suggestions for context-aware responses
+    if session and session.get("lastCandidates"):
+        candidates = session["lastCandidates"]
+        envelope["currentSuggestions"] = [
+            {
+                "number": idx + 1,  # For "tell me about #1" queries
+                "name": t.get("name"),
+                "traderId": t.get("traderId"),
+                "trade": t.get("trade"),
+                "experienceYears": t.get("experienceYears"),
+                "distanceKm": t.get("distanceKm"),
+                "verified": t.get("verified"),
+                "badges": t.get("badges", []),
+                "city": t.get("city"),
+                "postcode": t.get("postcode")
+            }
+            for idx, t in enumerate(candidates[:5])
+        ]
+    
+    return json.dumps(envelope)
 
 
 def _normalise_trade(text):
@@ -560,6 +649,65 @@ def _to_float(x):
         return float(str(x).strip())
     except Exception:
         return None
+
+
+
+def _build_comparison_text(candidates):
+    """Build a comparison response from candidates list"""
+    if not candidates or len(candidates) < 1:
+        return None
+    
+    if len(candidates) == 1:
+        c = candidates[0]
+        return (
+            f"I found one electrician: **{c['name']}** with {c.get('experienceYears', 'N/A')} years experience, "
+            f"located in {c.get('city', 'N/A')} {c.get('postcode', 'N/A')} (same area). "
+            f"{'Verified ✓' if c.get('verified') else 'Not verified'}. "
+            f"{', '.join(c.get('badges', []))}. "
+            f"Would you like me to notify them?"
+        )
+    
+    # For 2+ candidates
+    c1, c2 = candidates[0], candidates[1]
+    
+    response = "Here's a quick comparison:\n\n"
+    response += f"**1. {c1['name']}**: {c1.get('experienceYears', 'N/A')} years experience, "
+    response += f"{c1.get('city', 'N/A')} {c1.get('postcode', 'N/A')}, "
+    response += f"{'Verified ✓' if c1.get('verified') else 'Not verified'}"
+    
+    if c1.get('badges'):
+        response += f", {', '.join(c1['badges'])}"
+    
+    response += f"\n\n**2. {c2['name']}**: {c2.get('experienceYears', 'N/A')} years experience, "
+    response += f"{c2.get('city', 'N/A')} {c2.get('postcode', 'N/A')}, "
+    response += f"{'Verified ✓' if c2.get('verified') else 'Not verified'}"
+    
+    if c2.get('badges'):
+        response += f", {', '.join(c2['badges'])}"
+    
+    # Add comparison insight
+    exp1 = c1.get('experienceYears', 0) or 0
+    exp2 = c2.get('experienceYears', 0) or 0
+    
+    if exp1 > exp2:
+        response += f"\n\n{c1['name']} has {exp1 - exp2} more {'year' if exp1 - exp2 == 1 else 'years'} of experience."
+    elif exp2 > exp1:
+        response += f"\n\n{c2['name']} has {exp2 - exp1} more {'year' if exp2 - exp1 == 1 else 'years'} of experience."
+    else:
+        response += "\n\nBoth have equal experience."
+    
+    # Check for additional certifications
+    c1_badges = set(c1.get('badges', []))
+    c2_badges = set(c2.get('badges', []))
+    unique_to_c1 = c1_badges - c2_badges
+    
+    if unique_to_c1:
+        response += f" {c1['name']} has additional certifications."
+    
+    response += " Both are good choices!\n\nWould you like me to notify one of them?"
+    
+    return response
+
 
 
 def _to_int(x):
