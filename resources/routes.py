@@ -31,6 +31,7 @@ from resources.trader_rating import TraderRating, PastJobs, GetTraderRating
 from resources.verified_trader import VerifiedTrader
 from resources.verify_homeowner import CheckVerifiedHomeowner
 from resources.chat_agent import UIchatAgent
+from resources.notify_trader_email import NotifyTraderByEmailFromChat
 
 
 
@@ -72,4 +73,5 @@ routes = [
     (VerifiedTrader, "/travel/check-verified-trader/<user_id>"),
     (CheckVerifiedHomeowner, "/travel/check-verified-homeowner/<job_id>"),
     (UIchatAgent, "/travel/ai/homeowner-chat"),
+    (NotifyTraderByEmailFromChat, "/travel/ai/notify-trader-by-email-from-chat"),
 ]

@@ -35,6 +35,7 @@ class Config:
     
     # Application Configuration
     APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8000')
+    FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://192.168.0.46:8000')
 
     @classmethod
     def validate_email_config(cls):
