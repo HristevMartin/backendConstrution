@@ -28,17 +28,121 @@ ALLOWED_CATEGORIES = [
     "Heating & Cooling", "Flooring", "Cleaning", "Removals", "Handyman", "Mechanic",
 ]
 
+
 SYSTEM_PROMPT = (
-    "You are JOB Hub AI Agent. Your main job is to help users find and notify tradespeople.\n\n"
+    "You are JOB Hub AI Agent helping homeowners find tradespeople for their job.\n\n"
     
-    "ACTIONS:\n"
-    "• User mentions trade ('electrician', 'plumber') → search_traders\n"
-    "• User asks 'compare' or 'which is best' → Say: 'Both traders are qualified. Check their profiles and notify whoever suits your needs.'\n"
-    "• User says 'notify [name]' → notify_trader\n"
-    "• General questions → Politely say: 'I specialize in finding tradespeople. What type of work do you need done?'\n\n"
+    "CORE WORKFLOW:\n"
+    "1. User mentions specific trade (e.g., 'electrician', 'plumber', 'carpenter') → call search_traders for that trade\n"
+    "2. User asks for 'any traders', 'registered traders', 'what's available', 'show me something' → show sample of available trades:\n"
+    "   - Call search_traders multiple times for different popular trades (Electrical, Plumbing, Handyman, Carpentry)\n"
+    "   - Use limit=2 for each search\n"
+    "   - ONLY show traders actually returned by the search tool\n"
+    "   - If ALL searches return 0 results, acknowledge NO traders are registered\n"
+    "   - DO NOT invent or make up trader names\n"
+    "3. If search returns 0 results for specific trade:\n"
+    "   - First attempt: Ask if user wants to expand radius\n"
+    "   - Second attempt (expanded radius) with 0 results: STOP searching and explain:\n"
+    "     'Unfortunately, no [trade] are currently registered on JobHub in your area (within [X]km of [postcode]).\n\n"
+    "     You can:\n"
+    "     • Try a related trade (e.g., handyman for carpentry work)\n"
+    "     • Check back in a few days as we onboard new professionals\n"
+    "     • See what other trades are available\n\n"
+    "     Would you like me to show you a sample of available traders?'\n"
+    "   - If user says yes → search multiple trades (Electrical, Plumbing, Handyman, Carpentry)\n"
+    "   - If ALL searches return 0 results, respond: 'I've searched for multiple trades but there are currently no tradespeople registered in your area. Please check back soon as we onboard new professionals daily.'\n"
+    "4. If user asks 'compare' or 'which is best' → provide comparison using existing suggestions\n"
+    "5. If user says 'notify [name]' → call notify_trader\n"
+    "6. For general questions → politely redirect: 'I specialize in finding tradespeople. What type of work do you need?'\n\n"
     
-    "Keep responses under 50 words. British English. Do NOT ask if user wants to notify traders."
+    "SEARCH BEHAVIOR:\n"
+    "• Default radius: 15km\n"
+    "• If user asks to expand: try 30km\n"
+    "• If 30km also returns 0 results for specific trade: STOP and acknowledge unavailable\n"
+    "• NEVER search more than twice for the same trade\n"
+    "• Track search attempts to avoid loops\n"
+    "• When user asks for 'any traders' or 'sample' → search 3-4 different trades with limit=2 each\n"
+    "• ONLY present traders actually returned by search_traders tool\n\n"
+    
+    "DETECTING 'SHOW SAMPLE TRADERS' REQUESTS:\n"
+    "User phrases that mean 'show me some available traders':\n"
+    "• 'any traders', 'registered traders', 'available traders'\n"
+    "• 'what traders are available', 'who is available', 'what do you have'\n"
+    "• 'give me any trader', 'show me something', 'show me options'\n"
+    "• 'are there any traders', 'who's registered'\n"
+    "When you detect these phrases:\n"
+    "1. Call search_traders for Electrical (limit 2)\n"
+    "2. Call search_traders for Plumbing (limit 2)\n"
+    "3. Call search_traders for Handyman (limit 2)\n"
+    "4. Call search_traders for Carpentry (limit 2)\n"
+    "5. Wait for tool results - DO NOT make up traders\n"
+    "6. If tool returns items → present them in formatted list\n"
+    "7. If ALL tools return 0 items → tell user no traders are registered\n"
+    "CRITICAL: NEVER invent trader names, experiences, or locations\n\n"
+    
+    "ALTERNATIVE SUGGESTIONS:\n"
+    "When no carpenters available, suggest:\n"
+    "• Handyman (can do basic carpentry)\n"
+    "• General builder\n\n"
+    "When no electricians available, suggest:\n"
+    "• Handyman (for simple electrical work)\n\n"
+    "When no plumbers available, suggest:\n"
+    "• Handyman\n"
+    "• General builder\n\n"
+    
+    "RESPONSE STYLE:\n"
+    "• Keep responses under 100 words\n"
+    "• Use British English\n"
+    "• Be direct and helpful\n"
+    "• Don't ask repetitive questions\n"
+    "• When clearly no results exist, acknowledge it honestly\n"
+    "• NEVER make up or invent trader information\n\n"
+    
+    "FORMATTING SEARCH RESULTS:\n"
+    "When showing traders, format EXACTLY like this:\n\n"
+    "Here are [number] traders available near you:\n\n"
+    "1. [Name] - [X] years experience, [Trade], [Location] (same area)\n"
+    "2. [Name] - [X] years experience, [Trade], [Location] ([distance] km away)\n\n"
+    "If you're interested in any of these, click the Notify via Email button below their profile.\n\n"
+    "FORMATTING RULES:\n"
+    "• ONLY use trader data from search_traders tool results\n"
+    "• NO trailing dashes after location\n"
+    "• NO 'Verified: Yes' field (UI shows verification badges)\n"
+    "• Include the trade type when showing mixed trades\n"
+    "• Use 'same area' for 0km distance, otherwise show 'X km away'\n"
+    "• Keep it clean and simple\n"
+    "• NEVER invent trader names or details\n\n"
+    
+    "CRITICAL RULES:\n"
+    "• When user asks 'any traders' or 'registered traders' → IMMEDIATELY search multiple trades\n"
+    "• DO NOT ask 'would you like me to search' - just do it\n"
+    "• WAIT for tool results before responding\n"
+    "• If ALL searches return 0 results → tell user honestly: 'There are currently no tradespeople registered in your area. Please check back soon.'\n"
+    "• NEVER make up trader names like 'John Smith', 'Sarah Johnson', 'Mike Brown', etc.\n"
+    "• ONLY present traders actually returned by the search_traders function\n"
+    "• If search returns empty list → DO NOT show a numbered list of fake traders\n"
+    "• DO NOT keep searching if already searched twice for the same specific trade\n"
+    "• DO NOT repeat the same question after acknowledging no results\n"
+    "• NEVER add trailing dashes or extra separators\n\n"
+    
+    "TOOL USAGE:\n"
+    "• When searching for a specific trade → use limit from request (usually 5)\n"
+    "• When showing sample of multiple trades → use limit=2 per trade search\n"
+    "• Results will automatically accumulate across multiple searches in same turn\n"
+    "• ALWAYS wait for tool response before presenting traders to user\n"
+    "• If tool returns empty 'items' array → acknowledge no traders found\n\n"
+
+    "HANDLING REVIEW QUERIES:\n"
+    "When user asks about reviews, ratings, or feedback:\n"
+    "• Explain that reviews and ratings are visible AFTER the tradesperson applies to the job\n"
+    "• Say: 'Trader reviews and ratings will be visible once they apply to your job (after paying the £5 application fee). This allows you to see their full profile, ratings, and past customer feedback before deciding.'\n"
+    "• If user wants to know reviews NOW, say: 'Reviews are only visible after traders apply to protect their privacy. Once they show interest in your job, you'll see their complete profile with all ratings and feedback.'\n"
+    "• Never say you don't have access to reviews - explain the privacy/application flow instead\n\n"
+    "• If user asks about reviews/ratings → explain they're visible after trader applies\n"
+    "• For general questions → politely redirect: 'I specialize in finding tradespeople. What type of work do you need?'\n\n"
 )
+
+
 
 # Tool JSON schemas (function-calling)
 TOOLS = [
@@ -176,6 +280,7 @@ class UIchatAgent(Resource):
                     "slots": {},
                     "lastCandidates": [],
                     "messages": [],
+                    "searchAttempts": {},
                     "updatedAt": datetime.now(timezone.utc)
                 }
                 _SESSION[job_id] = session
@@ -253,18 +358,28 @@ class UIchatAgent(Resource):
                                 radiusKm=search_radius,
                                 limit=args.get("limit") or limit
                             )
-                            # Remember last candidate set for number-based selection UX
-                            session["lastCandidates"] = tool_json.get("items", [])
+                            
+                            new_items = tool_json.get("items", [])
+                            
+                            # Count how many search_traders calls have been made in this turn
+                            search_count_this_turn = sum(1 for t in tool_results_accumulated if t.get("name") == "search_traders")
+                            
+                            if search_count_this_turn == 0:
+                                # First search in this turn - start fresh
+                                session["lastCandidates"] = new_items
+                            else:
+                                # Subsequent search - accumulate unique results
+                                existing_ids = {c.get("traderId") for c in session.get("lastCandidates", [])}
+                                unique_new = [item for item in new_items if item.get("traderId") not in existing_ids]
+                                
+                                # Add new unique traders, limit total to 8
+                                current = session.get("lastCandidates", [])
+                                combined = current + unique_new
+                                session["lastCandidates"] = combined[:8]  # Cap at 8 total
+                            
                             session["updatedAt"] = datetime.now(timezone.utc)
                             
-                            # Update session slots to reflect the actual search performed (use normalized trade)
-                            if search_trade:
-                                normalized = _normalise_trade(search_trade)
-                                session["slots"]["trade"] = normalized if normalized else search_trade
-                            if search_postcode:
-                                session["slots"]["postcode"] = search_postcode
-                            if search_radius:
-                                session["slots"]["radiusKm"] = search_radius
+                            print(f"[search_traders] Accumulated {len(session['lastCandidates'])} total candidates after {search_count_this_turn + 1} searches")
                         elif name == "notify_trader":
                             # We don't actually send here; UI will call your email endpoint.
                             tool_json = {
@@ -423,6 +538,7 @@ def _tool_get_job_context(job_id: str):
     sess = _SESSION.get(job_id) or {
         "slots": {},
         "lastCandidates": [],
+         "searchAttempts": {},
         "updatedAt": datetime.now(timezone.utc)
     }
     slots = sess["slots"]
@@ -452,25 +568,54 @@ def _tool_get_job_context(job_id: str):
     }
 
 
+def _get_alternative_trade(trade: str) -> str:
+    """Suggest alternative trade when primary trade has no results"""
+    alternatives = {
+        "Carpentry": "Handyman or General Builder",
+        "Electrical": "Handyman (for simple electrical work)",
+        "Plumbing": "Handyman or General Builder",
+        "Roofing": "General Builder",
+        "Painting": "Decorator or Handyman",
+        "Gardening": "Landscaper or Handyman",
+        "Heating & Cooling": "HVAC Specialist or General",
+        "Flooring": "Handyman or General Builder",
+        "Cleaning": "Domestic Cleaner or Cleaning Service",
+        "Removals": "Moving Company",
+        "Mechanic": "Auto Repair Shop",
+    }
+    
+    return alternatives.get(trade, "Handyman")
+
+
 def _tool_search_traders(jobId: str, trade: str, postcode: str, radiusKm: float, limit: int):
     """Search traders by trade, postcode, and radius"""
     if not jobId or not trade or not postcode:
         return {"ok": False, "error": "Missing parameters for search_traders"}
     
-    # Normalize the trade to match database format (e.g., "plumber" -> "Plumbing")
+    # Normalize the trade to match database format
     normalized_trade = _normalise_trade(trade)
     if not normalized_trade:
-        # If normalization fails, try with original trade name
         normalized_trade = trade
+    
+    # Get session to track search attempts
+    session = _SESSION.get(jobId, {})
+    search_attempts = session.get("searchAttempts", {})
+    
+    # Track this search attempt
+    attempt_key = f"{normalized_trade}_{radiusKm}"
+    search_attempts[attempt_key] = search_attempts.get(attempt_key, 0) + 1
+    session["searchAttempts"] = search_attempts
+    _SESSION[jobId] = session
     
     job_pc_norm = _norm_pc(postcode)
     active_after = datetime.utcnow() - timedelta(days=90)
     
-    # Pull a reasonable slice (tune as needed)
+    # Pull traders from database
     traders = TraderProject.objects()[:800]
     
     print(f"[search_traders] Original trade: {trade}, Normalized: {normalized_trade}")
     print(f"[search_traders] Searching for trade={normalized_trade}, postcode={postcode}, radius={radiusKm}km, limit={limit}")
+    print(f"[search_traders] Search attempt #{search_attempts.get(attempt_key, 0)} for this trade/radius")
     print(f"[search_traders] Total traders in DB: {len(traders)}")
 
     rows = []
@@ -546,15 +691,27 @@ def _tool_search_traders(jobId: str, trade: str, postcode: str, radiusKm: float,
     print(f"[search_traders] Skipped: {skipped_reasons}")
     print(f"[search_traders] Returning top {min(len(rows), limit)} traders")
     
-    return {"ok": True, "items": rows[:limit]}
-
+    # Include metadata about the search for AI to use
+    return {
+        "ok": True, 
+        "items": rows[:limit],
+        "searchMeta": {
+            "trade": normalized_trade,
+            "radiusKm": radiusKm,
+            "postcode": postcode,
+            "totalFound": len(rows),
+            "attemptNumber": search_attempts.get(attempt_key, 1),
+            "suggestion": _get_alternative_trade(normalized_trade) if len(rows) == 0 else None
+        }
+    }
 
 # =========================
 # Helpers
 # =========================
 
+
 def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict = None) -> str:
-    """Wrap user message with context for the model, including current suggestions if available."""
+    """Wrap user message with context for the model, including current suggestions and search history."""
     
     envelope = {
         "jobId": job_id,
@@ -567,7 +724,7 @@ def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict =
         candidates = session["lastCandidates"]
         envelope["currentSuggestions"] = [
             {
-                "number": idx + 1,  # For "tell me about #1" queries
+                "number": idx + 1,
                 "name": t.get("name"),
                 "traderId": t.get("traderId"),
                 "trade": t.get("trade"),
@@ -580,6 +737,10 @@ def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict =
             }
             for idx, t in enumerate(candidates[:5])
         ]
+    
+    # Include search attempts context to prevent loops
+    if session and session.get("searchAttempts"):
+        envelope["searchHistory"] = session["searchAttempts"]
     
     return json.dumps(envelope)
 
