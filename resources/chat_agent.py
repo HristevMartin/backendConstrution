@@ -103,7 +103,7 @@ SYSTEM_PROMPT = (
     "Here are [number] traders available near you:\n\n"
     "1. [Name] - [X] years experience, [Trade], [Location] (same area)\n"
     "2. [Name] - [X] years experience, [Trade], [Location] ([distance] km away)\n\n"
-    "If you're interested in any of these, click the Notify via Email button below their profile.\n\n"
+    "To get in touch with any of these traders, click the 'Notify via Email' button below their profile.\n\n"
     "FORMATTING RULES:\n"
     "• ONLY use trader data from search_traders tool results\n"
     "• NO trailing dashes after location\n"
@@ -135,7 +135,7 @@ SYSTEM_PROMPT = (
     "HANDLING REVIEW QUERIES:\n"
     "When user asks about reviews, ratings, or feedback:\n"
     "• Explain that reviews and ratings are visible AFTER the tradesperson applies to the job\n"
-    "• Say: 'Trader reviews and ratings will be visible once they apply to your job (after paying the £5 application fee). This allows you to see their full profile, ratings, and past customer feedback before deciding.'\n"
+    "• Say: 'Trader reviews and ratings will be visible once they apply to your job. This allows you to see their full profile, ratings, and past customer feedback before deciding.'\n"
     "• If user wants to know reviews NOW, say: 'Reviews are only visible after traders apply to protect their privacy. Once they show interest in your job, you'll see their complete profile with all ratings and feedback.'\n"
     "• Never say you don't have access to reviews - explain the privacy/application flow instead\n\n"
     "• If user asks about reviews/ratings → explain they're visible after trader applies\n"
@@ -825,7 +825,7 @@ def _build_comparison_text(candidates):
             f"located in {c.get('city', 'N/A')} {c.get('postcode', 'N/A')} (same area). "
             f"{'Verified ✓' if c.get('verified') else 'Not verified'}. "
             f"{', '.join(c.get('badges', []))}. "
-            f"Would you like me to notify them?"
+            f"Click 'Notify via Email' below to contact them directly."
         )
     
     # For 2+ candidates
@@ -865,7 +865,7 @@ def _build_comparison_text(candidates):
     if unique_to_c1:
         response += f" {c1['name']} has additional certifications."
     
-    response += " Both are good choices!\n\nWould you like me to notify one of them?"
+    response += " Both are good choices!\n\nClick 'Notify via Email' below any trader to contact them directly."
     
     return response
 
