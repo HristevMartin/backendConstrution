@@ -38,15 +38,15 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          token_format: access_token
-          access_token_lifetime: 3600s
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: 'gcloud'
 
-      - name: Authenticate Docker to Artifact Registry
+      - name: Authenticate Docker to Artifact Registry  
         run: |
-          echo '${{ steps.auth.outputs.access_token }}' | docker login -u oauth2accesstoken --password-stdin https://${{ env.ARTIFACT_REGISTRY }} --quiet
+          gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.ARTIFACT_REGISTRY }} --quiet
 
       - name: Generate image tag
         id: image
