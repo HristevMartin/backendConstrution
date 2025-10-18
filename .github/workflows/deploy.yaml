@@ -84,7 +84,8 @@ jobs:
           echo "Triggering Terraform deployment..."
           echo "Image: ${{ needs.build-and-push.outputs.image_full }}"
           
-          gh api \
+          # Make the API call and capture output
+          RESPONSE=$(gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -93,7 +94,16 @@ jobs:
             -f client_payload[image]='${{ needs.build-and-push.outputs.image_full }}' \
             -f client_payload[tag]='${{ needs.build-and-push.outputs.image_tag }}' \
             -f client_payload[sha]='${{ github.sha }}' \
-            -f client_payload[actor]='${{ github.actor }}'
+            -f client_payload[actor]='${{ github.actor }}' 2>&1) || {
+            echo "❌ Failed to trigger deployment"
+            echo "Response: $RESPONSE"
+            exit 1
+          }
+          
+          echo "✅ Repository dispatch sent successfully"
+          if [ -n "$RESPONSE" ]; then
+            echo "Response: $RESPONSE"
+          fi
       
       - name: Deployment triggered
         run: |
