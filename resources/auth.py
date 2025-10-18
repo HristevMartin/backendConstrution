@@ -20,9 +20,12 @@ from managers.auth import _get_token_from_request
 APP_BASE_URL = Config.APP_BASE_URL
 RESET_TTL_MIN = 30  
 
-PROD = False                    
 COOKIE_NAME = "access_token"
 COOKIE_MAX_AGE = 60 * 24 * 60 * 60
+
+# Cookie settings:
+# PRODUCTION (cross-domain): secure=True, samesite="None"
+# LOCAL (same-domain): secure=False, samesite="Lax"
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -58,9 +61,8 @@ class Register(Resource):
             token,
             max_age=COOKIE_MAX_AGE,
             httponly=True,
-            # secure=PROD,                      
-            secure=True,     
-            samesite=("None" if PROD else "Lax"),
+            secure=True,          # PRODUCTION | LOCAL: False
+            samesite="None",      # PRODUCTION | LOCAL: "Lax"
             path="/",
         )
         return resp
@@ -85,11 +87,9 @@ class Login(Resource):
                 COOKIE_NAME,
                 token,
                 max_age=COOKIE_MAX_AGE,
-                httponly=True,          
-                # secure=PROD,            
-                secure=True,            
-                # samesite="Lax",         
-                samesite="None",         
+                httponly=True,
+                secure=True,          # PRODUCTION | LOCAL: False
+                samesite="None",      # PRODUCTION | LOCAL: "Lax"
                 path="/",
             )
 
@@ -167,13 +167,11 @@ class Logout(Resource):
             resp.set_cookie(
                 COOKIE_NAME,
                 "",
-                max_age=0,          
+                max_age=0,
                 path="/",
                 httponly=True,
-                # samesite="Lax",      
-                samesite="None",      
-                # secure=False,       
-                secure=True,       
+                secure=True,          # PRODUCTION | LOCAL: False
+                samesite="None",      # PRODUCTION | LOCAL: "Lax"
             )
             return resp
 

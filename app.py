@@ -14,6 +14,7 @@ db = MongoEngine()
 ROLLING_WINDOW = timedelta(hours=24)        
 COOKIE_MAX_AGE = 60 * 24 * 60 * 60  
 
+# LOCAL development origins
 FRONTEND_ORIGIN = [
     "http://localhost:8000",     
     "http://192.168.0.46:8000",
@@ -36,15 +37,16 @@ def create_app():
 
     initialize_passenger_types()
 
-    # CORS(
-    # app,
-    # supports_credentials=True,
-    # resources={r"/*": {"origins": [FRONTEND_ORIGIN]}},
-    # methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    # allow_headers=["Content-Type", "Authorization"],
-    # )
+    # CORS Configuration
+    # PRODUCTION: Use production domain(s) only
+    # LOCAL: Use local IPs and localhost
     CORS(app, 
-         origins=["http://localhost:8000", "http://192.168.0.46:8000", "http://192.168.0.37:8000", "https://find-tradespeople.com"],
+         origins=[
+             "http://localhost:8000",              # LOCAL
+             "http://192.168.0.46:8000",          # LOCAL
+             "http://192.168.0.37:8000",          # LOCAL
+             "https://find-tradespeople.com"      # PRODUCTION
+         ],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
@@ -75,10 +77,8 @@ def create_app():
                     new_token,
                     max_age=COOKIE_MAX_AGE,
                     httponly=True,
-                    # samesite="Lax",   
-                    samesite="None",   
-                    # secure=False,     
-                    secure=True,     
+                    secure=True,          # PRODUCTION | LOCAL: False
+                    samesite="None",      # PRODUCTION | LOCAL: "Lax"
                     path="/",
                 )
         except Exception:
