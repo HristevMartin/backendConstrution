@@ -33,8 +33,8 @@ class Config:
     COMPANY_NAME = os.getenv('COMPANY_NAME', 'Find Tradespeople')
     
     # Application Configuration
-    APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8000')
-    FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://192.168.0.46:8000')
+    APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
+    FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
 
     @classmethod
     def validate_email_config(cls):
