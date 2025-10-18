@@ -1,0 +1,13 @@
+from flask_restful import Resource
+from flask import request
+from models.page_visit import PageVisit
+import user_agents
+
+class HealthCheck(Resource):
+    def get(self):
+        return {'message': 'Health check successful'}, 200
+
+
+class SecondHealthCheck(Resource):
+    def get(self):
+        return {'message': 'Seconsd health check successsful'}, 200
