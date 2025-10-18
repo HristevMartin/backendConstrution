@@ -1,0 +1,101 @@
+# .github/workflows/deploy.yml
+# Place this file in: backendConstruction/.github/workflows/deploy.yml
+
+name: Backend Build and Deploy
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:  # Allows manual trigger
+
+env:
+  PROJECT_ID: regal-framework-475315-m1
+  REGION: europe-west1
+  ARTIFACT_REGISTRY: europe-west1-docker.pkg.dev
+  REPOSITORY: docker-repo
+  IMAGE_NAME: ub-travel-services-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      image_tag: ${{ steps.image.outputs.tag }}
+      image_full: ${{ steps.image.outputs.full }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+
+      - name: Generate image tag
+        id: image
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="v-${SHORT_SHA}-$(date +%s)"
+          IMAGE_FULL="${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}"
+          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "full=${IMAGE_FULL}" >> $GITHUB_OUTPUT
+          echo "Building image: ${IMAGE_FULL}"
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ steps.image.outputs.full }} \
+            -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ steps.image.outputs.full }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Output image info
+        run: |
+          echo "✅ Image pushed successfully!"
+          echo "📦 Image: ${{ steps.image.outputs.full }}"
+          echo "🏷️  Tag: ${{ steps.image.outputs.tag }}"
+
+  trigger-terraform:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Terraform deployment
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.TERRAFORM_REPO_TOKEN }}" \
+            https://api.github.com/repos/HristevMartin/constructionPlatformInfra/dispatches \
+            -d '{
+              "event_type": "deploy-backend",
+              "client_payload": {
+                "image": "${{ needs.build-and-push.outputs.image_full }}",
+                "tag": "${{ needs.build-and-push.outputs.image_tag }}",
+                "sha": "${{ github.sha }}",
+                "actor": "${{ github.actor }}"
+              }
+            }'
+      
+      - name: Deployment triggered
+        run: |
+          echo "🚀 Terraform deployment triggered!"
+          echo "📦 Image: ${{ needs.build-and-push.outputs.image_full }}"
+          echo "Check the constructionPlatformInfra repository for deployment status"
