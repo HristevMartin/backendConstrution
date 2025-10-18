@@ -14,7 +14,7 @@ class Config:
         'db': os.getenv('MONGO_DB', 'travelDB'),
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': int(os.getenv('DB_PORT', '27017')),
-    }
+    } 
 
     #production
     # MONGODB_SETTINGS = {
@@ -22,19 +22,19 @@ class Config:
     # }
     
     # Google Cloud Storage Configuration
-    GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'client_images_zoo')
-    GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'pure-zoo-466316-t4')
-    GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', 'C:/Users/hrist/constructionKeys/pure-zoo-466316-t4-b0c8401c6a9d.json')
+    GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'client_images_trader')
+    GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'regal-framework-475315-m1')
+    GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', '')
     
     # Email Configuration (SendGrid)
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
     SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'info@find-tradespeople.com')
-    # SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'virtoala0@gmail.com')
     ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'contact@find-tradespeople.com')
     COMPANY_NAME = os.getenv('COMPANY_NAME', 'Find Tradespeople')
     
     # Application Configuration
-    APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8000')
+    APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
+    FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
 
     @classmethod
     def validate_email_config(cls):
