@@ -44,7 +44,7 @@ def create_app():
     # allow_headers=["Content-Type", "Authorization"],
     # )
     CORS(app, 
-         origins=["http://localhost:8000", "http://192.168.0.46:8000", "http://192.168.0.37:8000, https://find-tradespeople.com"],
+         origins=["http://localhost:8000", "http://192.168.0.46:8000", "http://192.168.0.37:8000", "https://find-tradespeople.com"],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
