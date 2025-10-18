@@ -75,8 +75,10 @@ def create_app():
                     new_token,
                     max_age=COOKIE_MAX_AGE,
                     httponly=True,
-                    samesite="Lax",   
-                    secure=False,     
+                    # samesite="Lax",   
+                    samesite="None",   
+                    # secure=False,     
+                    secure=True,     
                     path="/",
                 )
         except Exception:
@@ -86,7 +88,7 @@ def create_app():
     return app
 
 
-if __name__ == "__main__":
-    app = create_app()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+# if __name__ == "__main__":
+#     app = create_app()
+#     app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
 

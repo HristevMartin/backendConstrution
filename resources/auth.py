@@ -58,7 +58,8 @@ class Register(Resource):
             token,
             max_age=COOKIE_MAX_AGE,
             httponly=True,
-            secure=PROD,                      
+            # secure=PROD,                      
+            secure=True,     
             samesite=("None" if PROD else "Lax"),
             path="/",
         )
@@ -85,8 +86,10 @@ class Login(Resource):
                 token,
                 max_age=COOKIE_MAX_AGE,
                 httponly=True,          
-                secure=PROD,            
-                samesite="Lax",         
+                # secure=PROD,            
+                secure=True,            
+                # samesite="Lax",         
+                samesite="None",         
                 path="/",
             )
 
@@ -167,8 +170,10 @@ class Logout(Resource):
                 max_age=0,          
                 path="/",
                 httponly=True,
-                samesite="Lax",      
-                secure=False,       
+                # samesite="Lax",      
+                samesite="None",      
+                # secure=False,       
+                secure=True,       
             )
             return resp
 
