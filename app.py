@@ -12,7 +12,11 @@ from resources.routes import routes
 db = MongoEngine()
 
 ROLLING_WINDOW = timedelta(hours=24)        
-COOKIE_MAX_AGE = 60 * 24 * 60 * 60  
+COOKIE_MAX_AGE = 60 * 24 * 60 * 60
+
+# Cookie settings based on environment
+COOKIE_SECURE = Config.IS_PRODUCTION
+COOKIE_SAMESITE = "None" if Config.IS_PRODUCTION else "Lax"  
 
 # LOCAL development origins
 FRONTEND_ORIGIN = [
@@ -25,6 +29,11 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.config.secret_key = "dasdasdasdasdas!321312?"
+    
+    # Log environment mode
+    env_mode = "PRODUCTION" if Config.IS_PRODUCTION else "DEVELOPMENT"
+    print(f"🚀 Starting backend in {env_mode} mode")
+    print(f"   Cookie settings: secure={COOKIE_SECURE}, samesite={COOKIE_SAMESITE}")
 
     db.init_app(app)
 
@@ -77,8 +86,8 @@ def create_app():
                     new_token,
                     max_age=COOKIE_MAX_AGE,
                     httponly=True,
-                    secure=True,          # PRODUCTION | LOCAL: False
-                    samesite="None",      # PRODUCTION | LOCAL: "Lax"
+                    secure=COOKIE_SECURE,
+                    samesite=COOKIE_SAMESITE,
                     path="/",
                 )
         except Exception:

@@ -23,9 +23,10 @@ RESET_TTL_MIN = 30
 COOKIE_NAME = "access_token"
 COOKIE_MAX_AGE = 60 * 24 * 60 * 60
 
-# Cookie settings:
-# PRODUCTION (cross-domain): secure=True, samesite="None"
-# LOCAL (same-domain): secure=False, samesite="Lax"
+# Cookie settings based on environment
+IS_PRODUCTION = Config.IS_PRODUCTION
+COOKIE_SECURE = IS_PRODUCTION      # True in production, False in development
+COOKIE_SAMESITE = "None" if IS_PRODUCTION else "Lax"  # "None" for cross-domain, "Lax" for same-domain
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -61,8 +62,8 @@ class Register(Resource):
             token,
             max_age=COOKIE_MAX_AGE,
             httponly=True,
-            secure=True,          # PRODUCTION | LOCAL: False
-            samesite="None",      # PRODUCTION | LOCAL: "Lax"
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
             path="/",
         )
         return resp
@@ -88,8 +89,8 @@ class Login(Resource):
                 token,
                 max_age=COOKIE_MAX_AGE,
                 httponly=True,
-                secure=True,          # PRODUCTION | LOCAL: False
-                samesite="None",      # PRODUCTION | LOCAL: "Lax"
+                secure=COOKIE_SECURE,
+                samesite=COOKIE_SAMESITE,
                 path="/",
             )
 
@@ -170,8 +171,8 @@ class Logout(Resource):
                 max_age=0,
                 path="/",
                 httponly=True,
-                secure=True,          # PRODUCTION | LOCAL: False
-                samesite="None",      # PRODUCTION | LOCAL: "Lax"
+                secure=COOKIE_SECURE,
+                samesite=COOKIE_SAMESITE,
             )
             return resp
 

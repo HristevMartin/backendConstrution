@@ -9,6 +9,10 @@ class Config:
     TESTING = False
     SECRET_KEY = os.getenv('SECRET_KEY', 'dasdasdadsdasdasdasdasdas')
     
+    # Environment mode: 'production' or 'development'
+    ENV = os.getenv('FLASK_ENV', 'production').lower()
+    IS_PRODUCTION = ENV == 'production'
+    
     #development
     MONGODB_SETTINGS = {
         'db': os.getenv('MONGO_DB', 'travelDB'),

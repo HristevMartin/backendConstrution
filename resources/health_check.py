@@ -10,4 +10,4 @@ class HealthCheck(Resource):
 
 class SecondHealthCheck(Resource):
     def get(self):
-        return {'message': 'Second heasltsh schesckss successsful'}, 200
+        return {'message': 'Second heassltsh schesckss successsful'}, 200
