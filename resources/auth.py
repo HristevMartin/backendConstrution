@@ -23,10 +23,10 @@ RESET_TTL_MIN = 30
 COOKIE_NAME = "access_token"
 COOKIE_MAX_AGE = 60 * 24 * 60 * 60
 
-# Cookie settings based on environment
 IS_PRODUCTION = Config.IS_PRODUCTION
-COOKIE_SECURE = IS_PRODUCTION      # True in production, False in development
-COOKIE_SAMESITE = "None" if IS_PRODUCTION else "Lax"  # "None" for cross-domain, "Lax" for same-domain
+COOKIE_SECURE = IS_PRODUCTION
+COOKIE_SAMESITE = "None" if IS_PRODUCTION else "Lax"
+COOKIE_DOMAIN = Config.COOKIE_DOMAIN
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -57,15 +57,20 @@ class Register(Resource):
             "role": user_role
         }), 201)
 
-        resp.set_cookie(
-            COOKIE_NAME,
-            token,
-            max_age=COOKIE_MAX_AGE,
-            httponly=True,
-            secure=COOKIE_SECURE,
-            samesite=COOKIE_SAMESITE,
-            path="/",
-        )
+        cookie_params = {
+            "key": COOKIE_NAME,
+            "value": token,
+            "max_age": COOKIE_MAX_AGE,
+            "httponly": True,
+            "secure": COOKIE_SECURE,
+            "samesite": COOKIE_SAMESITE,
+            "path": "/",
+        }
+        if COOKIE_DOMAIN:
+            cookie_params["domain"] = COOKIE_DOMAIN
+        
+        resp.set_cookie(**cookie_params)
+        print(f"🍪 Setting cookie in Register - domain: {COOKIE_DOMAIN}, secure: {COOKIE_SECURE}, samesite: {COOKIE_SAMESITE}")
         return resp
 
 
@@ -84,15 +89,20 @@ class Login(Resource):
             
             resp = make_response(jsonify(body), 200)
 
-            resp.set_cookie(
-                COOKIE_NAME,
-                token,
-                max_age=COOKIE_MAX_AGE,
-                httponly=True,
-                secure=COOKIE_SECURE,
-                samesite=COOKIE_SAMESITE,
-                path="/",
-            )
+            cookie_params = {
+                "key": COOKIE_NAME,
+                "value": token,
+                "max_age": COOKIE_MAX_AGE,
+                "httponly": True,
+                "secure": COOKIE_SECURE,
+                "samesite": COOKIE_SAMESITE,
+                "path": "/",
+            }
+            if COOKIE_DOMAIN:
+                cookie_params["domain"] = COOKIE_DOMAIN
+            
+            resp.set_cookie(**cookie_params)
+            print(f"🍪 Setting cookie in Login - domain: {COOKIE_DOMAIN}, secure: {COOKIE_SECURE}, samesite: {COOKIE_SAMESITE}")
 
             return resp
         
@@ -165,15 +175,20 @@ class Logout(Resource):
             token = _get_token_from_request()
 
             resp = make_response(jsonify({"message": "Logged out successfully"}), 200)
-            resp.set_cookie(
-                COOKIE_NAME,
-                "",
-                max_age=0,
-                path="/",
-                httponly=True,
-                secure=COOKIE_SECURE,
-                samesite=COOKIE_SAMESITE,
-            )
+            
+            cookie_params = {
+                "key": COOKIE_NAME,
+                "value": "",
+                "max_age": 0,
+                "path": "/",
+                "httponly": True,
+                "secure": COOKIE_SECURE,
+                "samesite": COOKIE_SAMESITE,
+            }
+            if COOKIE_DOMAIN:
+                cookie_params["domain"] = COOKIE_DOMAIN
+            
+            resp.set_cookie(**cookie_params)
             return resp
 
 

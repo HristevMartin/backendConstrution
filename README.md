@@ -18,6 +18,10 @@ export MONGO_HOST=localhost
 export MONGO_PORT=27017
 export MONGO_DB=travelDB
 set SECRET_KEY=very_secret_token
+set STRIPE_SECRET_KEY=sample
+set OPENAI_API_KEY=sample
+set SENDGRID_API_KEY=sample
+set FLASK_ENV=dev
 ```
 
 ## Setup and Installation

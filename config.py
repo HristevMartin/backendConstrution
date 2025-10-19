@@ -20,12 +20,7 @@ class Config:
         'port': int(os.getenv('DB_PORT', '27017')),
     } 
 
-    #production
-    # MONGODB_SETTINGS = {
-    #     'host': os.getenv('MONGODB_URI', 'mongodb://localhost:27017/travelDB')
-    # }
-    
-    # Google Cloud Storage Configuration
+
     GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'client_images_trader')
     GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'regal-framework-475315-m1')
     GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', '')
@@ -39,6 +34,8 @@ class Config:
     # Application Configuration
     APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
+    
+    COOKIE_DOMAIN = os.getenv('COOKIE_DOMAIN', 'find-tradespeople.com' if IS_PRODUCTION else None)
 
     @classmethod
     def validate_email_config(cls):
