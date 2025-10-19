@@ -11,3 +11,8 @@ class HealthCheck(Resource):
 class SecondHealthCheck(Resource):
     def get(self):
         return {'message': 'Second heassltsh schesckss successsful'}, 200
+
+
+class ThirdHealthCheck(Resource):
+    def get(self):
+        return {'message': 'Third heassltsh schesckss successsful'}, 200

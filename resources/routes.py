@@ -33,7 +33,7 @@ from resources.verify_homeowner import CheckVerifiedHomeowner
 from resources.chat_agent import UIchatAgent
 from resources.notify_trader_email import NotifyTraderByEmailFromChat
 from resources.ai_helper import AIGeneralChat
-from resources.health_check import HealthCheck, SecondHealthCheck
+from resources.health_check import HealthCheck, SecondHealthCheck, ThirdHealthCheck
 
 
 
@@ -79,4 +79,5 @@ routes = [
     (AIGeneralChat, "/travel/ai/general-chat"),
     (HealthCheck, "/travel/health-check"),
     (SecondHealthCheck, "/travel/second-health-check"),
+    (ThirdHealthCheck, "/travel/third-health-check"),
 ]
