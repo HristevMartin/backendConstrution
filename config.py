@@ -13,14 +13,14 @@ class Config:
     ENV = os.getenv('FLASK_ENV', 'production').lower()
     IS_PRODUCTION = ENV == 'production'
     
-    #development
+    # MongoDB Settings
     MONGODB_SETTINGS = {
         'db': os.getenv('MONGO_DB', 'travelDB'),
         'host': os.getenv('DB_HOST', 'localhost'),
         'port': int(os.getenv('DB_PORT', '27017')),
     } 
 
-
+    # GCS Configuration
     GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'client_images_trader')
     GCS_PROJECT_ID = os.getenv('GCS_PROJECT_ID', 'regal-framework-475315-m1')
     GCS_CREDENTIALS_PATH = os.getenv('GCS_CREDENTIALS_PATH', '')
@@ -35,22 +35,51 @@ class Config:
     APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
 
-    # Derive cookie domain dynamically: None in dev; production uses the frontend base URL host
-    _cookie_domain_env = os.getenv('COOKIE_DOMAIN')
-    if _cookie_domain_env is not None and _cookie_domain_env.strip() != "":
+    # Cookie domain configuration
+    _cookie_domain_env = os.getenv('COOKIE_DOMAIN', '').strip()
+    
+    if _cookie_domain_env:
         COOKIE_DOMAIN = _cookie_domain_env
-    else:
-        if IS_PRODUCTION:
-            try:
-                from urllib.parse import urlparse
-                parsed = urlparse(FRONTEND_BASE_URL)
-                host = (parsed.hostname or "").strip()
-                # For apex domain only; if subdomain exists we still set that host
-                COOKIE_DOMAIN = host or None
-            except Exception:
-                COOKIE_DOMAIN = None
-        else:
+    elif IS_PRODUCTION:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(FRONTEND_BASE_URL)
+            host = (parsed.hostname or "").strip()
+            COOKIE_DOMAIN = host if host else None
+        except Exception:
             COOKIE_DOMAIN = None
+    else:
+        COOKIE_DOMAIN = None
+
+    # Cookie Security Settings
+    COOKIE_SECURE = IS_PRODUCTION
+    COOKIE_HTTPONLY = True
+    COOKIE_SAMESITE = 'None' if IS_PRODUCTION else 'Lax'
+    COOKIE_PATH = '/'
+
+    @classmethod
+    def get_cookie_config(cls):
+        """Returns cookie configuration as a dictionary"""
+        config = {
+            'httponly': cls.COOKIE_HTTPONLY,
+            'secure': cls.COOKIE_SECURE,
+            'samesite': cls.COOKIE_SAMESITE,
+            'path': cls.COOKIE_PATH
+        }
+        # Only add domain if it's explicitly set
+        if cls.COOKIE_DOMAIN:
+            config['domain'] = cls.COOKIE_DOMAIN
+        return config
+    
+    @classmethod
+    def log_cookie_settings(cls):
+        """Log current cookie settings for debugging"""
+        print(f"🍪 Cookie Configuration:")
+        print(f"   Environment: {cls.ENV}")
+        print(f"   Domain: {cls.COOKIE_DOMAIN}")
+        print(f"   Secure: {cls.COOKIE_SECURE}")
+        print(f"   SameSite: {cls.COOKIE_SAMESITE}")
+        print(f"   HttpOnly: {cls.COOKIE_HTTPONLY}")
 
     @classmethod
     def validate_email_config(cls):
@@ -64,9 +93,9 @@ class Config:
             missing.append('ADMIN_EMAIL')
             
         if missing:
-            print(f"Warning: Missing email configuration: {', '.join(missing)}")
+            print(f"⚠️  Warning: Missing email configuration: {', '.join(missing)}")
             print("   Emails will not be sent until these are configured in your .env file")
             return False
         else:
-            print("Email configuration validated successfully")
+            print("✅ Email configuration validated successfully")
             return True
