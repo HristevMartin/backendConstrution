@@ -34,8 +34,23 @@ class Config:
     # Application Configuration
     APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
-    
-    COOKIE_DOMAIN = os.getenv('COOKIE_DOMAIN', 'find-tradespeople.com' if IS_PRODUCTION else None)
+
+    # Derive cookie domain dynamically: None in dev; production uses the frontend base URL host
+    _cookie_domain_env = os.getenv('COOKIE_DOMAIN')
+    if _cookie_domain_env is not None and _cookie_domain_env.strip() != "":
+        COOKIE_DOMAIN = _cookie_domain_env
+    else:
+        if IS_PRODUCTION:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(FRONTEND_BASE_URL)
+                host = (parsed.hostname or "").strip()
+                # For apex domain only; if subdomain exists we still set that host
+                COOKIE_DOMAIN = host or None
+            except Exception:
+                COOKIE_DOMAIN = None
+        else:
+            COOKIE_DOMAIN = None
 
     @classmethod
     def validate_email_config(cls):
