@@ -19,7 +19,7 @@ class AuthManager:
     def encode_token(user_id, role):
         payload = {
             "sub": user_id,
-            "exp": datetime.utcnow() + timedelta(days=60),
+            "exp": datetime.utcnow() + timedelta(days=180),
             "role": role,
             "iat": datetime.utcnow(), 
         }

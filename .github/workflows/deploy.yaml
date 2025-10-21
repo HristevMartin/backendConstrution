@@ -1,13 +1,10 @@
-# .github/workflows/deploy.yml
-# Place this file in: backendConstruction/.github/workflows/deploy.yml
-
 name: Backend Build and Deploy
 
 on:
   push:
     branches:
       - master
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch:  
 
 env:
   PROJECT_ID: regal-framework-475315-m1
