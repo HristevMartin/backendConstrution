@@ -6,7 +6,6 @@ from flask_restful import Api
 from managers.auth import AuthManager, COOKIE_NAME 
 from flask_mongoengine import MongoEngine
 
-from models.passenger import initialize_passenger_types
 from resources.routes import routes
 
 db = MongoEngine()
@@ -31,8 +30,6 @@ def create_app():
     api = Api(app)
 
     [api.add_resource(*r) for r in routes]
-
-    initialize_passenger_types()
 
     # CORS Configuration
     CORS(app, 
