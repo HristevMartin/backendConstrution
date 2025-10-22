@@ -45,7 +45,13 @@ class Config:
             from urllib.parse import urlparse
             parsed = urlparse(FRONTEND_BASE_URL)
             host = (parsed.hostname or "").strip()
-            COOKIE_DOMAIN = host if host else None
+            # Use .domain.com format to support both www and non-www
+            if host:
+                # Remove www. prefix if present, then add leading dot
+                base_domain = host.replace('www.', '')
+                COOKIE_DOMAIN = f'.{base_domain}'  # e.g., .find-tradespeople.com
+            else:
+                COOKIE_DOMAIN = None
         except Exception:
             COOKIE_DOMAIN = None
     else:
