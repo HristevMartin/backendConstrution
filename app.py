@@ -35,9 +35,11 @@ def create_app():
     CORS(app, 
          origins=[
              "http://localhost:8000",              
+             "http://localhost:3000",             
              "http://192.168.0.46:8000",          
              "http://192.168.0.37:8000",          
-             "https://find-tradespeople.com"      
+             "https://find-tradespeople.com",     
+             "https://www.find-tradespeople.com"  
          ],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
