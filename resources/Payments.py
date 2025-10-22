@@ -5,7 +5,6 @@ from models.application import Application
 from datetime import datetime
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-print('show me the secret key', stripe.api_key)
 
 APPLICATION_FEE_PENCE = 500
 APPLICATION_CURRENCY = "gbp"
