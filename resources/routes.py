@@ -34,6 +34,7 @@ from resources.chat_agent import UIchatAgent
 from resources.notify_trader_email import NotifyTraderByEmailFromChat
 from resources.ai_helper import AIGeneralChat
 from resources.health_check import HealthCheck, SecondHealthCheck, ThirdHealthCheck
+from resources.Payments import StripeWebhookTest
 
 
 
@@ -80,4 +81,5 @@ routes = [
     (HealthCheck, "/travel/health-check"),
     (SecondHealthCheck, "/travel/second-health-check"),
     (ThirdHealthCheck, "/travel/third-health-check"),
+    (StripeWebhookTest, "/api/payments/webhook-test"),
 ]
