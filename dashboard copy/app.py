@@ -49,67 +49,6 @@ with col4:
 
 st.markdown("---")
 
-# Geographic Distribution Section
-st.subheader("🌍 Geographic Distribution of Visitors")
-
-col_geo1, col_geo2 = st.columns(2)
-
-with col_geo1:
-    st.write("**Visitors by Country**")
-    with st.spinner("Loading geolocation data..."):
-        country_data = queries.get_visits_by_country()
-        
-        if not country_data.empty:
-            fig = px.bar(
-                country_data.head(10),
-                x='unique_visitors',
-                y='country',
-                orientation='h',
-                title='Top 10 Countries by Unique Visitors',
-                labels={'unique_visitors': 'Unique Visitors', 'country': 'Country'},
-                color='unique_visitors',
-                color_continuous_scale='Blues'
-            )
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No geographic data available")
-
-with col_geo2:
-    st.write("**Geographic Map**")
-    with st.spinner("Loading map data..."):
-        geo_distribution = queries.get_geographic_distribution()
-        
-        if not geo_distribution.empty and len(geo_distribution[geo_distribution['lat'] != 0]) > 0:
-            # Filter out unknown locations
-            map_data = geo_distribution[geo_distribution['lat'] != 0].copy()
-            
-            # Create map
-            fig = px.scatter_geo(
-                map_data,
-                lat='lat',
-                lon='lon',
-                hover_name='city',
-                hover_data={
-                    'country': True,
-                    'region': True,
-                    'visits': True,
-                    'lat': False,
-                    'lon': False
-                },
-                size='visits',
-                color='visits',
-                color_continuous_scale='Viridis',
-                title='Visitor Locations',
-                projection='natural earth'
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No geographic coordinates available for mapping")
-
-st.markdown("---")
-
 # Two column layout
 col_left, col_right = st.columns(2)
 
@@ -205,62 +144,41 @@ else:
 
 st.markdown("---")
 
-# Unique IP Addresses for Home Page with Geolocation
-st.subheader("🏠 Home Page Visitors with Locations")
-
-# Add option to show/hide geolocation
-show_geo = st.checkbox("Show Geolocation Data", value=True)
+# Unique IP Addresses for Home Page
+st.subheader("🏠 Home Page Visitors")
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.write("**Unique IP Addresses Accessing Home Page**")
+    home_ips = queries.get_unique_ips_by_page("home")
     
-    with st.spinner("Loading visitor data..." if not show_geo else "Loading visitor data with geolocation..."):
-        if show_geo:
-            home_ips = queries.get_unique_ips_with_location("home")
-        else:
-            home_ips = queries.get_unique_ips_by_page("home")
+    if not home_ips.empty:
+        # Format the dataframe for display
+        display_df = home_ips.copy()
+        display_df['last_visit'] = pd.to_datetime(display_df['last_visit']).dt.strftime('%Y-%m-%d %H:%M:%S')
+        display_df['first_visit'] = pd.to_datetime(display_df['first_visit']).dt.strftime('%Y-%m-%d %H:%M:%S')
         
-        if not home_ips.empty:
-            # Format the dataframe for display
-            display_df = home_ips.copy()
-            display_df['last_visit'] = pd.to_datetime(display_df['last_visit']).dt.strftime('%Y-%m-%d %H:%M:%S')
-            display_df['first_visit'] = pd.to_datetime(display_df['first_visit']).dt.strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Select columns to display
-            if show_geo:
-                display_columns = ['ip_address', 'visit_count', 'country', 'city', 'isp', 'last_visit', 'first_visit']
-                column_config = {
-                    "ip_address": "IP Address",
-                    "visit_count": st.column_config.NumberColumn("Visit Count", format="%d"),
-                    "country": "Country",
-                    "city": "City",
-                    "isp": "ISP",
-                    "last_visit": "Last Visit",
-                    "first_visit": "First Visit"
-                }
-            else:
-                display_columns = ['ip_address', 'visit_count', 'last_visit', 'first_visit']
-                column_config = {
-                    "ip_address": "IP Address",
-                    "visit_count": st.column_config.NumberColumn("Visit Count", format="%d"),
-                    "last_visit": "Last Visit",
-                    "first_visit": "First Visit"
-                }
-            
-            st.dataframe(
-                display_df[display_columns],
-                use_container_width=True,
-                hide_index=True,
-                column_config=column_config
-            )
-            
-            # Summary metrics
-            st.write(f"**Total unique visitors to home page:** {len(home_ips)}")
-            st.write(f"**Total home page visits:** {home_ips['visit_count'].sum()}")
-        else:
-            st.info("No visitors to home page yet")
+        st.dataframe(
+            display_df[['ip_address', 'visit_count', 'last_visit', 'first_visit']],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ip_address": "IP Address",
+                "visit_count": st.column_config.NumberColumn(
+                    "Visit Count",
+                    format="%d"
+                ),
+                "last_visit": "Last Visit",
+                "first_visit": "First Visit"
+            }
+        )
+        
+        # Summary metrics
+        st.write(f"**Total unique visitors to home page:** {len(home_ips)}")
+        st.write(f"**Total home page visits:** {home_ips['visit_count'].sum()}")
+    else:
+        st.info("No visitors to home page yet")
 
 with col2:
     st.write("**Top 5 Most Frequent Visitors**")
@@ -291,39 +209,6 @@ with st.expander("🔍 View Details for Specific IP"):
         )
         
         if selected_ip:
-            # Show geolocation for selected IP
-            if show_geo:
-                geo_info = queries.get_ip_geolocation(selected_ip)
-                
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    st.write(f"**IP Address:** {selected_ip}")
-                    st.write(f"**Location:** {geo_info['city']}, {geo_info['region']}, {geo_info['country']}")
-                    st.write(f"**ISP:** {geo_info['isp']}")
-                    st.write(f"**Timezone:** {geo_info['timezone']}")
-                
-                with col_b:
-                    if geo_info['lat'] != 0 and geo_info['lon'] != 0:
-                        # Show single point on map
-                        map_df = pd.DataFrame([{
-                            'lat': geo_info['lat'],
-                            'lon': geo_info['lon'],
-                            'location': f"{geo_info['city']}, {geo_info['country']}"
-                        }])
-                        
-                        fig = px.scatter_geo(
-                            map_df,
-                            lat='lat',
-                            lon='lon',
-                            hover_name='location',
-                            projection='natural earth',
-                            title='Visitor Location'
-                        )
-                        fig.update_layout(height=300)
-                        st.plotly_chart(fig, use_container_width=True)
-            
-            # Get visit details
             ip_details = queries.get_visitor_details_by_ip(selected_ip)
             
             st.write(f"**Activity for IP: {selected_ip}**")
@@ -374,4 +259,3 @@ else:
 # Footer
 st.markdown("---")
 st.caption(f"Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-st.caption("💡 Geolocation data is cached to minimize API calls. IP locations are approximate (city-level accuracy).")
