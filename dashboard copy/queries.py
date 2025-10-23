@@ -1,87 +1,13 @@
 from pymongo import MongoClient
 from datetime import datetime, timedelta
 import pandas as pd
-from typing import List, Dict, Optional
-import requests
-import time
-from functools import lru_cache
+from typing import List, Dict
 
 class DashboardQueries:
     def __init__(self, mongo_uri: str = "mongodb://localhost:27018/"):
         self.client = MongoClient(mongo_uri)
         self.db = self.client.travelDB
         self.page_visits = self.db.page_visits
-        self.ip_cache = self.db.ip_geolocation  # Cache geolocation results
-    
-    @lru_cache(maxsize=1000)
-    def get_ip_geolocation(self, ip_address: str) -> Dict:
-        """
-        Get geolocation data for an IP address using ip-api.com (free tier)
-        Caches results to avoid repeated API calls
-        Free tier: 45 requests per minute
-        """
-        # Check if we have cached data in MongoDB
-        cached = self.ip_cache.find_one({"ip_address": ip_address})
-        if cached:
-            return {
-                'country': cached.get('country', 'Unknown'),
-                'region': cached.get('region', 'Unknown'),
-                'city': cached.get('city', 'Unknown'),
-                'isp': cached.get('isp', 'Unknown'),
-                'lat': cached.get('lat', 0),
-                'lon': cached.get('lon', 0),
-                'timezone': cached.get('timezone', 'Unknown')
-            }
-        
-        # Make API call if not cached
-        try:
-            # Using ip-api.com free tier
-            response = requests.get(
-                f"http://ip-api.com/json/{ip_address}",
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if data.get('status') == 'success':
-                    geo_data = {
-                        'ip_address': ip_address,
-                        'country': data.get('country', 'Unknown'),
-                        'region': data.get('regionName', 'Unknown'),
-                        'city': data.get('city', 'Unknown'),
-                        'isp': data.get('isp', 'Unknown'),
-                        'lat': data.get('lat', 0),
-                        'lon': data.get('lon', 0),
-                        'timezone': data.get('timezone', 'Unknown'),
-                        'cached_at': datetime.now()
-                    }
-                    
-                    # Cache in MongoDB
-                    self.ip_cache.update_one(
-                        {'ip_address': ip_address},
-                        {'$set': geo_data},
-                        upsert=True
-                    )
-                    
-                    return geo_data
-            
-            # Rate limiting - wait a bit
-            time.sleep(1.5)  # To stay under 45 requests/minute
-            
-        except Exception as e:
-            print(f"Error fetching geolocation for {ip_address}: {e}")
-        
-        # Return default if failed
-        return {
-            'country': 'Unknown',
-            'region': 'Unknown',
-            'city': 'Unknown',
-            'isp': 'Unknown',
-            'lat': 0,
-            'lon': 0,
-            'timezone': 'Unknown'
-        }
     
     def get_total_visits(self) -> int:
         """Get total number of page visits"""
@@ -234,28 +160,6 @@ class DashboardQueries:
         
         return pd.DataFrame(results).rename(columns={"_id": "ip_address"})
 
-    def get_unique_ips_with_location(self, page: str = "home") -> pd.DataFrame:
-        """Get unique IP addresses with geolocation data"""
-        base_df = self.get_unique_ips_by_page(page)
-        
-        if base_df.empty:
-            return pd.DataFrame(columns=['ip_address', 'visit_count', 'last_visit', 'first_visit', 
-                                       'country', 'region', 'city', 'isp'])
-        
-        # Add geolocation data
-        locations = []
-        for ip in base_df['ip_address']:
-            geo = self.get_ip_geolocation(ip)
-            # Remove ip_address from geo dict to avoid duplicate columns
-            geo_clean = {k: v for k, v in geo.items() if k != 'ip_address'}
-            locations.append(geo_clean)
-        
-        # Merge with base data
-        geo_df = pd.DataFrame(locations)
-        result = pd.concat([base_df.reset_index(drop=True), geo_df], axis=1)
-        
-        return result
-
     def get_visitor_details_by_ip(self, ip_address: str) -> pd.DataFrame:
         """Get all visits from a specific IP address"""
         visits = list(self.page_visits.find(
@@ -266,42 +170,3 @@ class DashboardQueries:
             return pd.DataFrame(columns=['page', 'url', 'device_type', 'browser', 'os', 'created_at'])
         
         return pd.DataFrame(visits)
-    
-    def get_visits_by_country(self) -> pd.DataFrame:
-        """Get visit counts grouped by country"""
-        unique_ips = self.page_visits.distinct("ip_address")
-        
-        country_counts = {}
-        for ip in unique_ips:
-            geo = self.get_ip_geolocation(ip)
-            country = geo.get('country', 'Unknown')
-            country_counts[country] = country_counts.get(country, 0) + 1
-        
-        if not country_counts:
-            return pd.DataFrame(columns=['country', 'unique_visitors'])
-        
-        df = pd.DataFrame(list(country_counts.items()), columns=['country', 'unique_visitors'])
-        return df.sort_values('unique_visitors', ascending=False)
-    
-    def get_geographic_distribution(self) -> pd.DataFrame:
-        """Get detailed geographic distribution of visitors"""
-        unique_ips = self.page_visits.distinct("ip_address")
-        
-        geo_data = []
-        for ip in unique_ips:
-            visits = self.page_visits.count_documents({"ip_address": ip})
-            geo = self.get_ip_geolocation(ip)
-            geo_data.append({
-                'ip_address': ip,
-                'visits': visits,
-                'country': geo.get('country', 'Unknown'),
-                'region': geo.get('region', 'Unknown'),
-                'city': geo.get('city', 'Unknown'),
-                'lat': geo.get('lat', 0),
-                'lon': geo.get('lon', 0)
-            })
-        
-        if not geo_data:
-            return pd.DataFrame(columns=['ip_address', 'visits', 'country', 'region', 'city', 'lat', 'lon'])
-        
-        return pd.DataFrame(geo_data)
