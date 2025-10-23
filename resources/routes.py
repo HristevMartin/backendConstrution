@@ -35,7 +35,7 @@ from resources.notify_trader_email import NotifyTraderByEmailFromChat
 from resources.ai_helper import AIGeneralChat
 from resources.health_check import HealthCheck, SecondHealthCheck, ThirdHealthCheck
 from resources.Payments import StripeWebhookTest
-
+from resources.client_projects_utils import CheckIfAnyJobIsPaid
 
 
 routes = [
@@ -82,4 +82,5 @@ routes = [
     (SecondHealthCheck, "/travel/second-health-check"),
     (ThirdHealthCheck, "/travel/third-health-check"),
     (StripeWebhookTest, "/api/payments/webhook-test"),
+    (CheckIfAnyJobIsPaid, "/api/payments/check-if-any-job-is-paid/<job_id>"),
 ]
