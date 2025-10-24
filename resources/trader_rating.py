@@ -90,7 +90,7 @@ class TraderRating(Resource):
             trader_id = data.get('userId') or data.get('traderId')
             job_id = data.get('jobId')
             rating = data.get('rating')
-            comment = data.get('comment', '')
+            comment = data.get('comment')  # Optional field - can be None
             
             # Validate required fields
             if not trader_id:
@@ -109,7 +109,7 @@ class TraderRating(Resource):
             if existing_rating:
                 # Update existing rating
                 existing_rating.rating = int(rating)
-                existing_rating.comment = comment
+                existing_rating.comment = comment or ''  # Handle None comment
                 existing_rating.userId = trader_id
                 existing_rating.updatedDate = datetime.utcnow()
                 existing_rating.save()
@@ -135,7 +135,7 @@ class TraderRating(Resource):
                     homeownerId=user_id,
                     jobId=job_id,
                     rating=int(rating),
-                    comment=comment,
+                    comment=comment or '',  # Handle None comment
                     createdDate=datetime.utcnow(),
                     updatedDate=datetime.utcnow()
                 )
