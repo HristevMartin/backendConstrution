@@ -21,7 +21,8 @@ APP_BASE_URL = Config.APP_BASE_URL
 RESET_TTL_MIN = 30  
 
 COOKIE_NAME = "access_token"
-COOKIE_MAX_AGE = 60 * 24 * 60 * 60
+# Cookie expires in 180 days (matches JWT expiry in managers/auth.py)
+COOKIE_MAX_AGE = 180 * 24 * 60 * 60  # 180 days in seconds
 
 def _sha256(text: str) -> str:
     """Create SHA256 hash of text"""
@@ -250,16 +251,42 @@ class GetSession(Resource):
     @auth.login_required
     def get(self):
         try:
+            from flask import g
+            from datetime import datetime
+            
             user = auth.current_user()
             if not user:
                 return {"authenticated": False}, 401
             
-            return {
+            # Get JWT payload for expiry info
+            payload = getattr(g, "jwt_payload", None)
+            token_info = {}
+            
+            if payload:
+                exp_val = payload.get("exp")
+                if exp_val:
+                    exp_dt = datetime.utcfromtimestamp(exp_val) if isinstance(exp_val, (int, float)) else exp_val
+                    time_until_expiry = exp_dt - datetime.utcnow()
+                    token_info = {
+                        "expiresAt": exp_dt.isoformat(),
+                        "daysUntilExpiry": time_until_expiry.days,
+                        "hoursUntilExpiry": time_until_expiry.seconds // 3600
+                    }
+            
+            response = {
                 "authenticated": True,
                 "id": str(user.id),
                 "email": user.email,
                 "role": user.role
-            }, 200
+            }
+            
+            # Include token info if available
+            if token_info:
+                response["tokenInfo"] = token_info
+            
+            return response, 200
         except Exception as e:
             print(f"❌ Failed to get session: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {"authenticated": False, "error": "Failed to get session"}, 500
