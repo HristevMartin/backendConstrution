@@ -10,8 +10,10 @@ from resources.routes import routes
 
 db = MongoEngine()
 
-ROLLING_WINDOW = timedelta(hours=24)
-COOKIE_MAX_AGE = 60 * 24 * 60 * 60
+# Refresh token if within 7 days of expiry (instead of 1 day)
+ROLLING_WINDOW = timedelta(days=7)
+# Cookie expires in 180 days (matches JWT expiry)
+COOKIE_MAX_AGE = 180 * 24 * 60 * 60  # 180 days in seconds
 
 def create_app():
     app = Flask(__name__)
@@ -63,7 +65,13 @@ def create_app():
                 return resp
 
             exp_dt = datetime.utcfromtimestamp(exp_val) if isinstance(exp_val, (int, float)) else exp_val
-            if (exp_dt - datetime.utcnow()) <= ROLLING_WINDOW:
+            time_until_expiry = exp_dt - datetime.utcnow()
+            
+            # Log for debugging in production
+            if Config.IS_PRODUCTION:
+                print(f"🕐 Token expires in: {time_until_expiry.days} days for user {payload.get('sub')}")
+            
+            if time_until_expiry <= ROLLING_WINDOW:
                 new_token = AuthManager.encode_token(payload["sub"], payload.get("role"))
                 
                 # Use dynamic cookie configuration
@@ -77,10 +85,12 @@ def create_app():
                 }
                 
                 resp.set_cookie(**cookie_params)
-                print(f"🔄 Token refreshed for user: {payload.get('sub')}")
+                print(f"🔄 Token refreshed for user: {payload.get('sub')} (was expiring in {time_until_expiry.days} days)")
                 
         except Exception as e:
             print(f"⚠️ Error refreshing token: {str(e)}")
+            import traceback
+            traceback.print_exc()
         return resp
 
     return app
