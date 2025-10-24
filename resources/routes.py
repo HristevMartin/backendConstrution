@@ -36,6 +36,7 @@ from resources.ai_helper import AIGeneralChat
 from resources.health_check import HealthCheck, SecondHealthCheck, ThirdHealthCheck
 from resources.Payments import StripeWebhookTest
 from resources.client_projects_utils import CheckIfAnyJobIsPaid
+from resources.HomeOwnerVerification import HomeOwnerVerification
 
 
 routes = [
@@ -83,4 +84,5 @@ routes = [
     (ThirdHealthCheck, "/travel/third-health-check"),
     (StripeWebhookTest, "/api/payments/webhook-test"),
     (CheckIfAnyJobIsPaid, "/api/payments/check-if-any-job-is-paid/<job_id>"),
+    (HomeOwnerVerification, "/api/homeowner/verify/user")
 ]

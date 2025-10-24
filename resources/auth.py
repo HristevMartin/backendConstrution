@@ -94,7 +94,13 @@ class Login(Resource):
             }
 
             resp.set_cookie(**cookie_params)
-            print(f"🍪 Setting cookie in Login - domain: {Config.COOKIE_DOMAIN}, secure: {Config.COOKIE_SECURE}, samesite: {Config.COOKIE_SAMESITE}")
+            print(f"🍪 Setting cookie in Login:")
+            print(f"   Domain: {Config.COOKIE_DOMAIN}")
+            print(f"   Secure: {Config.COOKIE_SECURE}")
+            print(f"   SameSite: {Config.COOKIE_SAMESITE}")
+            print(f"   HttpOnly: {Config.COOKIE_HTTPONLY}")
+            print(f"   Max-Age: {COOKIE_MAX_AGE} seconds ({COOKIE_MAX_AGE / 86400} days)")
+            print(f"   Token (first 50 chars): {token[:50]}...")
 
             return resp
         
