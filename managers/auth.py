@@ -54,6 +54,10 @@ def _get_token_from_request() -> str | None:
 def verify_token(token):
     token = _get_token_from_request()
     if not token:
+        print(f"❌ No token found in request")
+        print(f"   Cookies: {list(request.cookies.keys())}")
+        print(f"   Authorization header: {request.headers.get('Authorization', 'None')[:50]}")
+        print(f"   Origin: {request.headers.get('Origin', 'None')}")
         return None
     print(f"🔑 Received token: {token[:50]}...")
     
