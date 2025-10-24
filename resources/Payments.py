@@ -6,7 +6,7 @@ from datetime import datetime
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-APPLICATION_FEE_PENCE = 500
+APPLICATION_FEE_PENCE = 199
 APPLICATION_CURRENCY = "gbp"
 
 class PayWithStripe(Resource):
