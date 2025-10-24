@@ -32,7 +32,7 @@ ALLOWED_CATEGORIES = [
 SYSTEM_PROMPT = (
     "You are JOB Hub AI Agent helping homeowners find tradespeople for their job.\n\n"
     
-    "CORE WORKFLOW:\n"
+    "CORE WORKFLOW:\n"  
     "1. User mentions specific trade (e.g., 'electrician', 'plumber', 'carpenter') → call search_traders for that trade\n"
     "2. User asks for 'any traders', 'registered traders', 'what's available', 'show me something' → show sample of available trades:\n"
     "   - Call search_traders multiple times for different popular trades (Electrical, Plumbing, Handyman, Carpentry)\n"
@@ -124,21 +124,50 @@ SYSTEM_PROMPT = (
     "• DO NOT keep searching if already searched twice for the same specific trade\n"
     "• DO NOT repeat the same question after acknowledging no results\n"
     "• NEVER add trailing dashes or extra separators\n\n"
+
+    "USER REPETITION / ACKNOWLEDGEMENT HANDLING:\n"
+    "• If the user says things like 'you already showed me', 'you just did', 'I’ve seen them', 'thanks', or 'that’s fine' — "
+    "do NOT repeat previous search results.\n"
+    "• Instead, respond politely, for example:\n"
+    "  'Got it! Let me know if you'd like to see tradespeople from a different trade or expand the search area.'\n"
+    "• Only show new results if the user explicitly asks for a different trade, new location, or wider radius.\n\n"
+
     
     "TOOL USAGE:\n"
-    "• When searching for a specific trade → use limit from request (usually 5)\n"
+    "• When user asks for specific trade → use limit from request (usually 5)\n"
     "• When showing sample of multiple trades → use limit=2 per trade search\n"
-    "• Results will automatically accumulate across multiple searches in same turn\n"
+    "• If postcode missing from context → call get_job_context first\n"
+    "• Store search results in session - subsequent searches for SAME trade accumulate results\n"
+    "• If trade changes → previous results are cleared automatically\n"
+    "• When proposing radius expansion → DO NOT search yet, ask for confirmation first\n"
     "• ALWAYS wait for tool response before presenting traders to user\n"
-    "• If tool returns empty 'items' array → acknowledge no traders found\n\n"
+    "• If tool returns empty 'items' array → acknowledge no traders found\n"
+    "• Check context['currentRadius'] and lastSearch to provide consistent responses\n\n"
 
+    "CONTEXT PERSISTENCE:\n"
+    "• Once a trade is searched, remember it as the 'current trade' for this conversation\n"
+    "• Once a radius is set, remember it as the 'current radius'\n"
+    "• If user asks 'expand radius' or 'try wider area', offer specific km (e.g., 30km)\n"
+    "• When suggesting radius expansion, say: 'Would you like me to search within 30 km instead?'\n"
+    "• Store this as pending confirmation - wait for user's yes/no\n"
+    "• After user confirms, execute the expanded search automatically\n"
+    "• Always maintain consistency: don't say 'no results' if you're about to show results\n"
+    "• If you receive lastSearch context showing 0 results at 15km, and user confirms expansion:\n"
+    "  - Execute search at 30km\n"
+    "  - If found, say: 'I couldn't find any [trade] within 15 km, but within 30 km I found X:'\n\n"
+    
+    "TRADE CONSISTENCY:\n"
+    "• When user asks for specific trade (e.g., 'electrician'), search ONLY that trade\n"
+    "• DO NOT mix multiple trades in same response unless user asked for 'any' or 'sample'\n"
+    "• If showing multiple trades (user asked for 'any traders'), clearly label each section\n"
+    "• Filter final results to match the current trade before presenting\n\n"
+    
     "HANDLING REVIEW QUERIES:\n"
     "When user asks about reviews, ratings, or feedback:\n"
     "• Explain that reviews and ratings are visible AFTER the tradesperson applies to the job\n"
     "• Say: 'Trader reviews and ratings will be visible once they apply to your job. This allows you to see their full profile, ratings, and past customer feedback before deciding.'\n"
     "• If user wants to know reviews NOW, say: 'Reviews are only visible after traders apply to protect their privacy. Once they show interest in your job, you'll see their complete profile with all ratings and feedback.'\n"
-    "• Never say you don't have access to reviews - explain the privacy/application flow instead\n\n"
-    "• If user asks about reviews/ratings → explain they're visible after trader applies\n"
+    "• Never say you don't have access to reviews - explain the privacy/application flow instead\n"
     "• For general questions → politely redirect: 'I specialize in finding tradespeople. What type of work do you need?'\n\n"
 )
 
@@ -205,6 +234,30 @@ def _is_greeting(message: str) -> bool:
     return clean_msg in greetings
 
 
+def _is_confirmation(message: str) -> tuple:
+    """
+    Check if message is a confirmation (yes/no).
+    Returns: (is_confirmation, is_positive)
+    """
+    msg = message.strip().lower()
+    
+    positive = ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay', 'alright', 
+                'go ahead', 'please', 'do it', 'expand']
+    negative = ['no', 'nope', 'nah', 'not', "don't", 'cancel']
+    
+    # Check for positive confirmation
+    for word in positive:
+        if word == msg or msg.startswith(word + ' ') or msg.endswith(' ' + word):
+            return True, True
+    
+    # Check for negative confirmation
+    for word in negative:
+        if word == msg or msg.startswith(word + ' ') or msg.endswith(' ' + word):
+            return True, False
+    
+    return False, False
+
+
 class UIchatAgent(Resource):
     def post(self):
         """
@@ -212,6 +265,7 @@ class UIchatAgent(Resource):
         - If trade missing -> model asks.
         - If enough info -> model calls search_traders.
         - We run the DB search and return candidates; model writes final reply.
+        
         Request:
         { "jobId": "...", "message": "free text", "limit": 5 }
         Response (UI-ready):
@@ -277,10 +331,12 @@ class UIchatAgent(Resource):
             session = _SESSION.get(job_id)
             if not session:
                 session = {
-                    "slots": {},
-                    "lastCandidates": [],
-                    "messages": [],
-                    "searchAttempts": {},
+                    "slots": {},  # Persistent context: trade, radiusKm, postcode
+                    "lastCandidates": [],  # Current search results
+                    "messages": [],  # Conversation history
+                    "searchAttempts": {},  # Track search attempts to prevent loops
+                    "pending": None,  # Pending user confirmation (radius expansion, etc.)
+                    "lastSearchParams": None,  # Last successful search parameters
                     "updatedAt": datetime.now(timezone.utc)
                 }
                 _SESSION[job_id] = session
@@ -298,6 +354,99 @@ class UIchatAgent(Resource):
                 "role": "user", 
                 "content": _build_user_envelope(job_id, user_msg, limit, session)
             })
+
+            # ========== HANDLE PENDING CONFIRMATIONS ==========
+            # If user is responding to a pending confirmation (e.g., radius expansion)
+            if session.get("pending"):
+                pending = session["pending"]
+                is_conf, is_positive = _is_confirmation(user_msg)
+                
+                if is_conf:
+                    if pending.get("expect") == "radius_confirm" and is_positive:
+                        # User confirmed radius expansion - trigger search immediately
+                        print(f"[UIchatAgent] User confirmed radius expansion to {pending.get('newRadius')}km")
+                        
+                        # Get search parameters from pending state
+                        trade = pending.get("trade")
+                        new_radius = pending.get("newRadius")
+                        postcode = session.get("slots", {}).get("postcode")
+                        previous_radius = pending.get("previousRadius", 15)
+                        
+                        # Clear pending state
+                        session["pending"] = None
+                        
+                        # Execute search directly
+                        if trade and postcode and new_radius:
+                            tool_json = _tool_search_traders(
+                                jobId=job_id,
+                                trade=trade,
+                                postcode=postcode,
+                                radiusKm=new_radius,
+                                limit=limit
+                            )
+                            
+                            # Update session with results
+                            session["lastCandidates"] = tool_json.get("items", [])
+                            session["slots"]["radiusKm"] = new_radius
+                            session["lastSearchParams"] = {
+                                "trade": trade,
+                                "postcode": postcode,
+                                "radiusKm": new_radius
+                            }
+                            session["updatedAt"] = datetime.now(timezone.utc)
+                            _SESSION[job_id] = session
+                            
+                            # Build response
+                            count = len(session["lastCandidates"])
+                            if count > 0:
+                                reply = (f"I couldn't find any {trade.lower()} within {previous_radius} km, "
+                                        f"but within {new_radius} km I found {count} {trade.lower()}:")
+                            else:
+                                reply = (f"Unfortunately, no {trade.lower()} are currently registered "
+                                        f"within {new_radius} km of {postcode}. "
+                                        f"You might want to try a related trade like Handyman.")
+                            
+                            # Save conversation
+                            session["messages"].append({"role": "user", "content": user_msg})
+                            session["messages"].append({"role": "assistant", "content": reply})
+                            if len(session["messages"]) > 12:
+                                session["messages"] = session["messages"][-12:]
+                            
+                            return {
+                                "ok": True,
+                                "turnId": turn_id,
+                                "receivedAt": ts_iso,
+                                "reply": reply,
+                                "suggestions": session["lastCandidates"],
+                                "nextAction": "SUGGESTIONS_SHOWN" if count > 0 else "NONE",
+                                "slots": {
+                                    "trade": trade,
+                                    "radiusKm": new_radius
+                                }
+                            }, 200
+                    
+                    elif not is_positive:
+                        # User declined - clear pending and acknowledge
+                        print(f"[UIchatAgent] User declined pending action: {pending.get('expect')}")
+                        session["pending"] = None
+                        session["updatedAt"] = datetime.now(timezone.utc)
+                        _SESSION[job_id] = session
+                        
+                        reply = "No problem. What else can I help you with?"
+                        
+                        session["messages"].append({"role": "user", "content": user_msg})
+                        session["messages"].append({"role": "assistant", "content": reply})
+                        
+                        return {
+                            "ok": True,
+                            "turnId": turn_id,
+                            "receivedAt": ts_iso,
+                            "reply": reply,
+                            "suggestions": session.get("lastCandidates", []),
+                            "nextAction": "AWAIT_USER",
+                            "slots": {}
+                        }, 200
+            # ==================================================
 
             # Tool-call loop (max 5 tool interactions per turn)
             tool_results_accumulated = []
@@ -351,6 +500,12 @@ class UIchatAgent(Resource):
                             search_postcode = args.get("postcode")
                             search_radius = args.get("radiusKm")
                             
+                            # Detect trade change - if searching for different trade, reset candidates
+                            current_trade = session.get("slots", {}).get("trade")
+                            if current_trade and search_trade and search_trade != current_trade:
+                                print(f"[search_traders] Trade changed from {current_trade} to {search_trade} - resetting candidates")
+                                session["lastCandidates"] = []
+                            
                             tool_json = _tool_search_traders(
                                 jobId=args.get("jobId") or job_id,
                                 trade=search_trade,
@@ -365,21 +520,40 @@ class UIchatAgent(Resource):
                             search_count_this_turn = sum(1 for t in tool_results_accumulated if t.get("name") == "search_traders")
                             
                             if search_count_this_turn == 0:
-                                # First search in this turn - start fresh
+                                # First search in this turn - replace existing candidates
                                 session["lastCandidates"] = new_items
-                            else:
-                                # Subsequent search - accumulate unique results
-                                existing_ids = {c.get("traderId") for c in session.get("lastCandidates", [])}
-                                unique_new = [item for item in new_items if item.get("traderId") not in existing_ids]
                                 
-                                # Add new unique traders, limit total to 8
-                                current = session.get("lastCandidates", [])
-                                combined = current + unique_new
-                                session["lastCandidates"] = combined[:8]  # Cap at 8 total
+                                # Update persistent context (slots) with current search params
+                                session["slots"]["trade"] = search_trade
+                                session["slots"]["radiusKm"] = search_radius
+                                session["slots"]["postcode"] = search_postcode
+                                
+                                # Store last successful search params
+                                session["lastSearchParams"] = {
+                                    "trade": search_trade,
+                                    "postcode": search_postcode,
+                                    "radiusKm": search_radius,
+                                    "resultCount": len(new_items)
+                                }
+                            else:
+                                # Subsequent search within same turn - accumulate ONLY if same trade
+                                if search_trade == session.get("slots", {}).get("trade"):
+                                    existing_ids = {c.get("traderId") for c in session.get("lastCandidates", [])}
+                                    unique_new = [item for item in new_items if item.get("traderId") not in existing_ids]
+                                    
+                                    # Add new unique traders, limit total to 8
+                                    current = session.get("lastCandidates", [])
+                                    combined = current + unique_new
+                                    session["lastCandidates"] = combined[:8]  # Cap at 8 total
+                                else:
+                                    # Different trade - replace (don't mix)
+                                    session["lastCandidates"] = new_items
+                                    session["slots"]["trade"] = search_trade
+                                    session["slots"]["radiusKm"] = search_radius
                             
                             session["updatedAt"] = datetime.now(timezone.utc)
                             
-                            print(f"[search_traders] Accumulated {len(session['lastCandidates'])} total candidates after {search_count_this_turn + 1} searches")
+                            print(f"[search_traders] Search complete: {len(session['lastCandidates'])} total candidates")
                         elif name == "notify_trader":
                             # We don't actually send here; UI will call your email endpoint.
                             tool_json = {
@@ -427,13 +601,43 @@ class UIchatAgent(Resource):
                 )
 
                 if search_performed:
-                    # Show the new search results
-                    suggestions = session.get("lastCandidates") or []
+                    # Get suggestions from session
+                    raw_suggestions = session.get("lastCandidates") or []
+                    current_trade = session.get("slots", {}).get("trade")
+                    
+                    print(f"[UIchatAgent] Search performed. Raw suggestions: {len(raw_suggestions)}, Current trade: {current_trade}")
+                    
+                    # Only filter if we have multiple different trades in results
+                    # Check if all suggestions are same trade
+                    if raw_suggestions:
+                        trades_in_results = set(s.get("trade") for s in raw_suggestions)
+                        print(f"[UIchatAgent] Trades in results: {trades_in_results}")
+                        
+                        # If we have multiple trades OR current trade doesn't match, filter
+                        if len(trades_in_results) > 1 and current_trade:
+                            suggestions = _filter_suggestions_by_trade(raw_suggestions, current_trade)
+                            print(f"[UIchatAgent] Filtered {len(raw_suggestions)} candidates to {len(suggestions)} matching {current_trade}")
+                        else:
+                            # All same trade or no filtering needed - return all
+                            suggestions = raw_suggestions
+                            print(f"[UIchatAgent] No filtering needed, returning all {len(suggestions)} suggestions")
+                    else:
+                        suggestions = raw_suggestions
+                    
                     next_action = "SUGGESTIONS_SHOWN" if suggestions else "NONE"
+                    
                 elif is_comparison_query:
-                    # For comparison queries, keep showing the existing suggestions
-                    suggestions = session.get("lastCandidates") or []
+                    # For comparison queries, keep showing the existing filtered suggestions
+                    current_trade = session.get("slots", {}).get("trade")
+                    raw_suggestions = session.get("lastCandidates") or []
+                    
+                    if current_trade and raw_suggestions:
+                        suggestions = _filter_suggestions_by_trade(raw_suggestions, current_trade)
+                    else:
+                        suggestions = raw_suggestions
+                    
                     next_action = "SUGGESTIONS_SHOWN" if suggestions else "NONE"
+                    
                 else:
                     # No search performed and not a comparison - clear old results
                     suggestions = []
@@ -711,15 +915,31 @@ def _tool_search_traders(jobId: str, trade: str, postcode: str, radiusKm: float,
 
 
 def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict = None) -> str:
-    """Wrap user message with context for the model, including current suggestions and search history."""
-    
+    """
+    Wrap user message with full context for the model.
+    Includes current suggestions, search history, and pending confirmations.
+    """
     envelope = {
         "jobId": job_id,
         "message": user_msg,
         "limit": limit
     }
     
-    # Include current suggestions for context-aware responses
+    # Include persistent context (trade, radius, postcode)
+    if session and session.get("slots"):
+        slots = session["slots"]
+        context = {}
+        if slots.get("trade"):
+            context["currentTrade"] = slots["trade"]
+        if slots.get("radiusKm"):
+            context["currentRadius"] = slots["radiusKm"]
+        if slots.get("postcode"):
+            context["postcode"] = slots["postcode"]
+        
+        if context:
+            envelope["context"] = context
+    
+    # Include current suggestions for context-aware responses (comparison queries)
     if session and session.get("lastCandidates"):
         candidates = session["lastCandidates"]
         envelope["currentSuggestions"] = [
@@ -732,13 +952,24 @@ def _build_user_envelope(job_id: str, user_msg: str, limit: int, session: dict =
                 "distanceKm": t.get("distanceKm"),
                 "verified": t.get("verified"),
                 "badges": t.get("badges", []),
-                "city": t.get("city"),
-                "postcode": t.get("postcode")
+                "city": t.get("city")
             }
             for idx, t in enumerate(candidates[:5])
         ]
     
-    # Include search attempts context to prevent loops
+    # Include last search parameters for consistency
+    if session and session.get("lastSearchParams"):
+        envelope["lastSearch"] = session["lastSearchParams"]
+    
+    # Include pending confirmation context (e.g., "waiting for yes/no on radius expansion")
+    if session and session.get("pending"):
+        pending = session["pending"]
+        envelope["pendingConfirmation"] = {
+            "type": pending.get("expect"),
+            "details": {k: v for k, v in pending.items() if k != "expect"}
+        }
+    
+    # Include search attempts to prevent loops
     if session and session.get("searchAttempts"):
         envelope["searchHistory"] = session["searchAttempts"]
     
@@ -811,6 +1042,39 @@ def _to_float(x):
     except Exception:
         return None
 
+
+
+def _filter_suggestions_by_trade(suggestions: list, target_trade: str) -> list:
+    """
+    Filter suggestions to only include traders matching target trade.
+    Sort by: verified (desc), distanceKm (asc), experienceYears (desc)
+    """
+    if not suggestions or not target_trade:
+        return suggestions
+    
+    # Normalize target trade for comparison
+    normalized_target = _normalise_trade(target_trade) or target_trade
+    
+    # Filter by trade - match against normalized trade
+    filtered = []
+    for s in suggestions:
+        trader_trade = s.get("trade", "")
+        # Normalize the trader's trade as well for consistent comparison
+        normalized_trader_trade = _normalise_trade(trader_trade) or trader_trade
+        
+        if normalized_trader_trade == normalized_target:
+            filtered.append(s)
+    
+    print(f"[_filter_suggestions_by_trade] Target: {target_trade} (normalized: {normalized_target}), Found: {len(filtered)}/{len(suggestions)}")
+    
+    # Sort: verified first, then by distance, then by experience
+    filtered.sort(key=lambda x: (
+        not x.get("verified", False),  # False sorts before True, so invert
+        x.get("distanceKm", 999),
+        -(x.get("experienceYears") or 0)  # Negative for descending
+    ))
+    
+    return filtered
 
 
 def _build_comparison_text(candidates):
