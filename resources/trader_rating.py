@@ -129,13 +129,12 @@ class TraderRating(Resource):
                     }
                 }, 200
             else:
-                # Create new rating
                 new_rating = TraderRatingModel(
                     userId=trader_id,
                     homeownerId=user_id,
                     jobId=job_id,
                     rating=int(rating),
-                    comment=comment or '',  # Handle None comment
+                    comment=comment or '', 
                     createdDate=datetime.utcnow(),
                     updatedDate=datetime.utcnow()
                 )
