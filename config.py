@@ -1,8 +1,8 @@
 # config.py
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
-load_dotenv()
+# load_dotenv()
 
 class Config:
     DEBUG = False
@@ -38,6 +38,8 @@ class Config:
 
     # Cookie domain configuration
     _cookie_domain_env = os.getenv('COOKIE_DOMAIN', '').strip()
+
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
     
     if _cookie_domain_env:
         COOKIE_DOMAIN = _cookie_domain_env

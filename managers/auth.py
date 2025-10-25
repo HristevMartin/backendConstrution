@@ -7,7 +7,7 @@ from flask_httpauth import HTTPTokenAuth
 from werkzeug.exceptions import BadRequest
 from flask import request, g
 
-from models.user import BlacklistedToken, Users
+from models.user import Users
 
 jwt_secret_key = os.getenv("SECRET_KEY")
 jwt_secret_key = "dsadsadsadasdasdasdsadsa"
@@ -52,6 +52,10 @@ def _get_token_from_request() -> str | None:
 
 @auth.verify_token
 def verify_token(token):
+    # if request.path in ['/travel/login', '/travel/register', '/travel/auth/google', '/travel/forgot-password']:
+    #     return True 
+
+
     token = _get_token_from_request()
     if not token:
         print(f"❌ No token found in request")
