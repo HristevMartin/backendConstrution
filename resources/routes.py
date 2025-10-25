@@ -37,11 +37,13 @@ from resources.health_check import HealthCheck, SecondHealthCheck, ThirdHealthCh
 from resources.Payments import StripeWebhookTest
 from resources.client_projects_utils import CheckIfAnyJobIsPaid
 from resources.HomeOwnerVerification import HomeOwnerVerification
+from resources.auth import GoogleAuth
 
 
 routes = [
     (Register, "/travel/register"),
     (Login, "/travel/login"),
+    (GoogleAuth, "/travel/auth/google"),
     (Logout, "/travel/logout"),
     (ForgotPassword, "/travel/forgot-password"),
     (ClientProjects, "/travel/save-client-project"),
@@ -84,5 +86,5 @@ routes = [
     (ThirdHealthCheck, "/travel/third-health-check"),
     (StripeWebhookTest, "/api/payments/webhook-test"),
     (CheckIfAnyJobIsPaid, "/api/payments/check-if-any-job-is-paid/<job_id>"),
-    (HomeOwnerVerification, "/api/homeowner/verify/user")
+    (HomeOwnerVerification, "/api/homeowner/verify/user"),
 ]
