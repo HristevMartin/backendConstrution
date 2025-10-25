@@ -2,7 +2,7 @@ from flask_restful import Resource
 from managers.auth import auth
 from models.TraderProject import TraderProject
 from models.user import Users
-
+#
 
 class VerifiedTrader(Resource):
     @auth.login_required
