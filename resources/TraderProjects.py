@@ -5,13 +5,29 @@ from util.gcs_handler import GCSHandler
 from util.email_service import EmailService
 import uuid
 from datetime import datetime
+from resources.auth import auth, _get_token_from_request
+from models.user import Users
 
 class SaveTraderProject(Resource):
+    @auth.login_required
     def post(self):
         try:
-            print("Request content type:", request.content_type)
-            print("Form data:", dict(request.form))
-            print("Files received:", len(request.files.getlist('projectImages')) if request.files else 0)
+            
+            token = _get_token_from_request()
+
+            if not token:
+                return {"error": "Token is required"}, 401
+            
+            user_id = auth.current_user().id
+            if not user_id:
+                return {"error": "User ID is required"}, 401
+
+            user = Users.objects(id=user_id).first()
+            if not user:
+                return {"error": "User not found"}, 404
+
+            user_email = user.email
+            print(f"User email: {user_email}")
             
             # Generate unique project ID
             project_id = str(uuid.uuid4())
@@ -26,6 +42,8 @@ class SaveTraderProject(Resource):
             user_id = form_data.get('userId')
             if not user_id:
                 return {"error": "userId is required"}, 400
+
+            form_data['email'] = user_email
             
             # Validate required trader registration fields
             required_fields = ['name', 'email', 'primaryTrade', 'city', 'postcode', 'radiusKm', 'marketingConsent']

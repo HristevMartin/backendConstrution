@@ -51,22 +51,38 @@ def fetch_nuts_from_postcode(postcode):
         return 'London'
 
 class ClientProjects(Resource):
+    @auth.login_required
     def post(self):
         try:
             project_id = str(uuid.uuid4())
             print(f"Generated project ID: {project_id}")
+
+            token = _get_token_from_request()
+            if not token:
+                return {"error": "Token is required"}, 401
+
+            user_id = auth.current_user().id
+            print(f"User ID: {user_id}")
+
+            user = Users.objects(id=user_id).first()
+            if not user:
+                return {"error": "User not found"}, 404
+            
+            user_email = user.email
+            print(f"User email: {user_email}")
             
             # Get form data
             form_data = {}
             for key in request.form:
                 form_data[key] = request.form[key]
             
+
+            form_data['email'] = user_email
             # Extract userId from form data (sent from frontend auth)
             user_id = form_data.get('userId')
             if not user_id:
                 return {"error": "userId is required"}, 400
             
-            # Add project metadata
             form_data['project_id'] = project_id
             form_data['user_id'] = user_id
             form_data['created_at'] = datetime.utcnow().isoformat()
@@ -145,27 +161,12 @@ class ClientProjects(Resource):
                 # Clear postcode for non-London locations if not provided
                 if not postcode:
                     form_data['postcode'] = ''
-
             
-            
-            print('Final form data:', {
-                'project_id': project_id,
-                'email': form_data.get('email', 'N/A'),
-                'image_count': len(image_urls),
-                'area': area,
-                'location': location,
-                'postcode': postcode,
-                'nuts': form_data.get('nuts', 'N/A')
-            })
-            
-            # Save project data to database using the ClientProject model
+ 
             try:
                 project = ClientProject.create_project(form_data, image_urls)
                 project.save()
 
-                print('show me in here what is the project id', project.project_id)
-                print('show me in here what is the project id', project.id)
-                print('show me in here what is the project id', project.user_id)
                 client_tracker = ClientUserCompletedJobs(
                 id=str(uuid.uuid4()),
                 userId=project.user_id,
