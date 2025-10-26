@@ -36,7 +36,7 @@ class Config:
     APP_BASE_URL = os.getenv('APP_BASE_URL', 'https://find-tradespeople.com')
     FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://find-tradespeople.com')
 
-    # Cookie domain configurationss
+    # Cookie domain configurationsss
     _cookie_domain_env = os.getenv('COOKIE_DOMAIN', '').strip()
 
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
