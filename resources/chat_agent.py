@@ -32,8 +32,13 @@ ALLOWED_CATEGORIES = [
 SYSTEM_PROMPT = (
     "You are JOB Hub AI Agent helping homeowners find tradespeople for their job.\n\n"
     
+    "SUPPORTED TRADES:\n"
+    "Plumbing, Electrical, Carpentry, Roofing, Painting, Gardening, Heating & Cooling, Flooring, Cleaning, Removals, Handyman, Mechanic\n\n"
+    
     "CORE WORKFLOW:\n"  
-    "1. User mentions specific trade (e.g., 'electrician', 'plumber', 'carpenter') → call search_traders for that trade\n"
+    "1. User mentions ANY specific trade (e.g., 'electrician', 'plumber', 'carpenter', 'cleaner', 'painter', etc.) → IMMEDIATELY call search_traders for that trade\n"
+    "   - DO NOT ask clarifying questions - just search!\n"
+    "   - Phrases like 'find me a [trade]', 'I need a [trade]', 'show me [trade]' are ALL direct requests\n"
     "2. User asks for 'any traders', 'registered traders', 'what's available', 'show me something' → show sample of available trades:\n"
     "   - Call search_traders multiple times for different popular trades (Electrical, Plumbing, Handyman, Carpentry)\n"
     "   - Use limit=2 for each search\n"
@@ -53,7 +58,7 @@ SYSTEM_PROMPT = (
     "   - If ALL searches return 0 results, respond: 'I've searched for multiple trades but there are currently no tradespeople registered in your area. Please check back soon as we onboard new professionals daily.'\n"
     "4. If user asks 'compare' or 'which is best' → provide comparison using existing suggestions\n"
     "5. If user says 'notify [name]' → call notify_trader\n"
-    "6. For general questions → politely redirect: 'I specialize in finding tradespeople. What type of work do you need?'\n\n"
+    "6. For TRULY general questions (not mentioning any trade) → politely redirect: 'I specialize in finding tradespeople. What type of work do you need?'\n\n"
     
     "SEARCH BEHAVIOR:\n"
     "• Default radius: 15km\n"
@@ -117,7 +122,21 @@ SYSTEM_PROMPT = (
     "• When user asks 'any traders' or 'registered traders' → IMMEDIATELY search multiple trades\n"
     "• DO NOT ask 'would you like me to search' - just do it\n"
     "• WAIT for tool results before responding\n"
-    "• If ALL searches return 0 results → tell user honestly: 'There are currently no tradespeople registered in your area. Please check back soon.'\n"
+    "• If ALL searches return 0 results → tell user honestly: 'There are currently no tradespeople registered in your area. Please check back soon.'\n\n"
+    
+    "TRADE REQUEST EXAMPLES (→ SEARCH IMMEDIATELY):\n"
+    "✅ 'find me a cleaner' → search for Cleaning\n"
+    "✅ 'I need an electrician' → search for Electrical\n"
+    "✅ 'show me plumbers' → search for Plumbing\n"
+    "✅ 'any painters nearby' → search for Painting\n"
+    "✅ 'do you have carpenters' → search for Carpentry\n"
+    "✅ 'looking for a handyman' → search for Handyman\n\n"
+    
+    "GENERAL QUESTIONS (→ ASK FOR CLARIFICATION):\n"
+    "❌ 'what can you do?' → redirect\n"
+    "❌ 'tell me about your service' → redirect\n"
+    "❌ 'how does this work?' → redirect\n\n"
+
     "• NEVER make up trader names like 'John Smith', 'Sarah Johnson', 'Mike Brown', etc.\n"
     "• ONLY present traders actually returned by the search_traders function\n"
     "• If search returns empty list → DO NOT show a numbered list of fake traders\n"
@@ -500,10 +519,15 @@ class UIchatAgent(Resource):
                             search_postcode = args.get("postcode")
                             search_radius = args.get("radiusKm")
                             
+                            # Normalize the search trade to ensure consistency
+                            normalized_search_trade = _normalise_trade(search_trade) or search_trade
+                            
                             # Detect trade change - if searching for different trade, reset candidates
                             current_trade = session.get("slots", {}).get("trade")
-                            if current_trade and search_trade and search_trade != current_trade:
-                                print(f"[search_traders] Trade changed from {current_trade} to {search_trade} - resetting candidates")
+                            normalized_current_trade = _normalise_trade(current_trade) if current_trade else None
+                            
+                            if normalized_current_trade and normalized_search_trade != normalized_current_trade:
+                                print(f"[search_traders] Trade changed from {normalized_current_trade} to {normalized_search_trade} - resetting candidates")
                                 session["lastCandidates"] = []
                             
                             tool_json = _tool_search_traders(
@@ -523,21 +547,21 @@ class UIchatAgent(Resource):
                                 # First search in this turn - replace existing candidates
                                 session["lastCandidates"] = new_items
                                 
-                                # Update persistent context (slots) with current search params
-                                session["slots"]["trade"] = search_trade
+                                # Update persistent context (slots) with NORMALIZED search params
+                                session["slots"]["trade"] = normalized_search_trade
                                 session["slots"]["radiusKm"] = search_radius
                                 session["slots"]["postcode"] = search_postcode
                                 
                                 # Store last successful search params
                                 session["lastSearchParams"] = {
-                                    "trade": search_trade,
+                                    "trade": normalized_search_trade,
                                     "postcode": search_postcode,
                                     "radiusKm": search_radius,
                                     "resultCount": len(new_items)
                                 }
                             else:
                                 # Subsequent search within same turn - accumulate ONLY if same trade
-                                if search_trade == session.get("slots", {}).get("trade"):
+                                if normalized_search_trade == normalized_current_trade:
                                     existing_ids = {c.get("traderId") for c in session.get("lastCandidates", [])}
                                     unique_new = [item for item in new_items if item.get("traderId") not in existing_ids]
                                     
@@ -548,7 +572,7 @@ class UIchatAgent(Resource):
                                 else:
                                     # Different trade - replace (don't mix)
                                     session["lastCandidates"] = new_items
-                                    session["slots"]["trade"] = search_trade
+                                    session["slots"]["trade"] = normalized_search_trade
                                     session["slots"]["radiusKm"] = search_radius
                             
                             session["updatedAt"] = datetime.now(timezone.utc)
@@ -607,22 +631,28 @@ class UIchatAgent(Resource):
                     
                     print(f"[UIchatAgent] Search performed. Raw suggestions: {len(raw_suggestions)}, Current trade: {current_trade}")
                     
-                    # Only filter if we have multiple different trades in results
-                    # Check if all suggestions are same trade
-                    if raw_suggestions:
-                        trades_in_results = set(s.get("trade") for s in raw_suggestions)
-                        print(f"[UIchatAgent] Trades in results: {trades_in_results}")
+                    # Normalize current trade for comparison
+                    normalized_current = _normalise_trade(current_trade) if current_trade else None
+                    
+                    # Check if we need to filter
+                    if raw_suggestions and normalized_current:
+                        # Normalize all trades in results for comparison
+                        trades_in_results = set(_normalise_trade(s.get("trade")) or s.get("trade") for s in raw_suggestions)
+                        print(f"[UIchatAgent] Normalized trades in results: {trades_in_results}")
+                        print(f"[UIchatAgent] Normalized current trade: {normalized_current}")
                         
-                        # If we have multiple trades OR current trade doesn't match, filter
-                        if len(trades_in_results) > 1 and current_trade:
-                            suggestions = _filter_suggestions_by_trade(raw_suggestions, current_trade)
-                            print(f"[UIchatAgent] Filtered {len(raw_suggestions)} candidates to {len(suggestions)} matching {current_trade}")
+                        # If we have multiple trades OR current trade doesn't match any result, filter
+                        if len(trades_in_results) > 1 or normalized_current not in trades_in_results:
+                            suggestions = _filter_suggestions_by_trade(raw_suggestions, normalized_current)
+                            print(f"[UIchatAgent] Filtered {len(raw_suggestions)} candidates to {len(suggestions)} matching {normalized_current}")
                         else:
-                            # All same trade or no filtering needed - return all
+                            # All same trade and matches current - return all
                             suggestions = raw_suggestions
                             print(f"[UIchatAgent] No filtering needed, returning all {len(suggestions)} suggestions")
                     else:
+                        # No filtering needed - return all
                         suggestions = raw_suggestions
+                        print(f"[UIchatAgent] No filtering needed (no current trade or no suggestions)")
                     
                     next_action = "SUGGESTIONS_SHOWN" if suggestions else "NONE"
                     

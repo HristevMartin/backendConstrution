@@ -8,8 +8,6 @@ class HomeOwnerVerification(Resource):
     def post(self):
         user_id = str(auth.current_user().id)
         
-        data = request.get_json()
-            
         user = Users.objects(id=user_id).first()
         print('show me the user', user)
         
