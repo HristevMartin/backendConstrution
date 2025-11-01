@@ -53,6 +53,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 ".env" 
+"env.sh"
+"env.bat"
+env.bat
 
 venv/
 .venv/

@@ -38,6 +38,7 @@ from resources.Payments import StripeWebhookTest
 from resources.client_projects_utils import CheckIfAnyJobIsPaid
 from resources.HomeOwnerVerification import HomeOwnerVerification
 from resources.auth import GoogleAuth
+from resources.job_applicants import GetApplicantsPerJob
 
 
 routes = [
@@ -87,4 +88,5 @@ routes = [
     (StripeWebhookTest, "/api/payments/webhook-test"),
     (CheckIfAnyJobIsPaid, "/api/payments/check-if-any-job-is-paid/<job_id>"),
     (HomeOwnerVerification, "/api/homeowner/verify/user"),
+    (GetApplicantsPerJob, "/api/job-applicants/<job_id>")
 ]
