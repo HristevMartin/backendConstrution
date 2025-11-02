@@ -25,3 +25,17 @@ class HomeOwnerVerification(Resource):
             'status': True,
             'roles': user.role
         }, 200
+
+
+    @auth.login_required
+    def get(self):
+        user_id = str(auth.current_user().id)
+        user = Users.objects(id=user_id).first()
+        print('show me the user', user)
+        return {
+            'message': 'Homeowner roles',
+            'status': True,
+            'roles': user.role
+        }, 200
+
+
