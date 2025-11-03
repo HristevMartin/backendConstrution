@@ -9,7 +9,7 @@ class HomeOwnerVerification(Resource):
         user_id = str(auth.current_user().id)
         
         user = Users.objects(id=user_id).first()
-        print('show me the user', user)
+        print('show me the usser', user)
         
         if not user:
             return {'message': 'User not found', 'status': False}, 404
