@@ -20,7 +20,7 @@ from resources.TraderProject import GetAllProfiles
 from resources.CommentResource import SaveComment, GetCommentsByProjectId, DeleteComment, UpdateComment
 from resources.ClientProjects import ClientProjects, GetClientProject, EditClientProject, GetAllClientProjects, DeleteClientProjectId
 from resources.TraderProjects import SaveTraderProject, GetTraderProject
-from resources.Payments import PayWithStripe, CheckPaymentStatus
+from resources.Payments import PayWithStripe, CheckPaymentStatus, CreateFreeApplication
 from resources.ChatComponent import ChatComponent, CreateChat, GetAllChats, GetConversationById, ChatSummary, MarkConversationRead
 from resources.track_visits import SimplePageTrackingResource, GetPageVisits
 from resources.JobApplicationCounter import JobApplicationCounterResource
@@ -59,6 +59,7 @@ routes = [
     (GetAllClientProjects, "/travel/get-all-client-projects"),
     (PayWithStripe, "/api/payments/create-intent"),
     (CheckPaymentStatus, "/api/payments/check-payment-status/<user_id>/<job_id>"),
+    (CreateFreeApplication, "/api/payments/create-free-application"),
     (ChatComponent, "/travel/chat-component/<conversation_id>"),
     (CreateChat, "/travel/chat-component/create-chat"),
     (GetAllChats, "/travel/chat-component/get-all-chats"),
