@@ -84,61 +84,144 @@ class ChatComponent(Resource):
     def save_message(self, data, user_id, conversation_id):
         """Save a message in an existing conversation"""
         try:
+            print('='*80)
+            print('💬 SAVE MESSAGE REQUEST')
+            print('='*80)
+            print(f'📋 conversation_id: {conversation_id}')
+            print(f'👤 sender_id (user_id): {user_id}')
+            print(f'📋 Request data: {json.dumps(data, indent=2)}')
+            
             # Extract data (conversation_id now comes from URL parameter)
             message_body = data.get('body')
             
             # Validate required fields
             if not conversation_id or not message_body:
+                print(f'❌ ERROR: Missing required fields')
+                print(f'   - conversation_id: {conversation_id}')
+                print(f'   - body: {message_body}')
                 return {"error": "conversationId and body are required"}, 400
             
             # Check if conversation exists
             conversation = Conversation.objects(conversation_id=conversation_id).first()
             if not conversation:
+                print(f'❌ ERROR: Conversation not found: {conversation_id}')
                 return {"error": "Conversation not found"}, 404
+            
+            print(f'✅ Conversation found:')
+            print(f'   - conversation_id: {conversation.conversation_id}')
+            print(f'   - homeowner_id: {conversation.homeowner_id} (type: {type(conversation.homeowner_id)})')
+            print(f'   - trader_id: {conversation.trader_id} (type: {type(conversation.trader_id)})')
+            
+            # Convert sender_id to string for consistency
+            sender_id_str = str(user_id)
+            print(f'👤 Sender ID (string): {sender_id_str}')
             
             # Create new message
             message = Message(
                 conversation_id=conversation_id,
-                sender_id=user_id,  
+                sender_id=sender_id_str,
                 body=message_body
             )
             message.save()
+            print(f'✅ Message saved: {str(message.pk)}')
             
             # Update conversation
             conversation.last_message_at = datetime.utcnow()
             conversation.message_count = str(int(conversation.message_count) + 1)
             conversation.save()
+            print(f'✅ Conversation updated: message_count={conversation.message_count}')
             
             # Update unread_count for the recipient (the other participant)
             try:
+                print(f'🔍 Finding recipient participant...')
+                print(f'   - conversation_id: {conversation_id}')
+                print(f'   - sender_id: {sender_id_str}')
+                
+                # Get ALL participants first for debugging
+                all_participants = ConversationParticipant.objects(conversation_id=conversation_id)
+                print(f'📋 All participants in conversation ({all_participants.count()} total):')
+                for p in all_participants:
+                    p_user_id_str = str(p.user_id)
+                    print(f'   - user_id: {p_user_id_str} (type: {type(p.user_id)}, raw: {p.user_id})')
+                    print(f'     role: {p.role}')
+                    print(f'     unread_count: {p.unread_count}')
+                    print(f'     matches sender? {p_user_id_str == sender_id_str}')
+                
                 # Find the recipient participant (not the sender)
-                recipient_participant = ConversationParticipant.objects(
-                    conversation_id=conversation_id
-                ).filter(user_id__ne=user_id).first()
+                # Try multiple query methods to handle different ID types
+                recipient_participant = None
+                
+                # Method 1: Direct string comparison
+                for p in all_participants:
+                    p_user_id_str = str(p.user_id)
+                    if p_user_id_str != sender_id_str:
+                        recipient_participant = p
+                        print(f'✅ Found recipient using string comparison: {p_user_id_str}')
+                        break
+                
+                # Method 2: If Method 1 failed, try MongoDB query
+                if not recipient_participant:
+                    print(f'⚠️ Method 1 failed, trying MongoDB query...')
+                    recipient_participant = ConversationParticipant.objects(
+                        conversation_id=conversation_id
+                    ).filter(user_id__ne=sender_id_str).first()
+                    
+                    if recipient_participant:
+                        print(f'✅ Found recipient using MongoDB query: {str(recipient_participant.user_id)}')
+                    else:
+                        print(f'❌ Method 2 also failed')
+                
+                # Method 3: Try with ObjectId conversion if needed
+                if not recipient_participant:
+                    print(f'⚠️ Method 2 failed, trying ObjectId conversion...')
+                    from bson import ObjectId
+                    try:
+                        sender_oid = ObjectId(sender_id_str) if ObjectId.is_valid(sender_id_str) else None
+                        if sender_oid:
+                            recipient_participant = ConversationParticipant.objects(
+                                conversation_id=conversation_id
+                            ).filter(user_id__ne=sender_oid).first()
+                            if recipient_participant:
+                                print(f'✅ Found recipient using ObjectId query: {str(recipient_participant.user_id)}')
+                    except Exception as e:
+                        print(f'⚠️ ObjectId conversion failed: {str(e)}')
                 
                 if recipient_participant:
                     # Increment unread_count by 1
                     current_unread = int(recipient_participant.unread_count or '0')
                     recipient_participant.unread_count = str(current_unread + 1)
                     recipient_participant.save()
-                    print(f"Updated unread_count for recipient {recipient_participant.user_id}: {current_unread} -> {current_unread + 1}")
+                    print(f'✅ Updated unread_count for recipient {str(recipient_participant.user_id)}: {current_unread} -> {current_unread + 1}')
                 else:
-                    print(f"No recipient participant found for conversation {conversation_id}")
+                    print(f'❌ ERROR: No recipient participant found!')
+                    print(f'   This means the conversation only has one participant or lookup failed')
+                    print(f'   This is a CRITICAL ERROR - messages won\'t be delivered!')
+                    # Don't fail the message save, but log the error
                     
             except Exception as e:
-                print(f"Error updating unread_count for recipient: {str(e)}")
+                print(f'❌ ERROR updating unread_count for recipient: {str(e)}')
+                import traceback
+                traceback.print_exc()
                 # Don't fail the message save if unread_count update fails
+            
+            print('='*80)
+            print('✅ MESSAGE SAVE SUCCESSFUL')
+            print('='*80)
             
             return {
                 "success": True,
                 "message": "Message sent successfully",
-                "message_id": str(message.pk),  
+                "message_id": str(message.pk),
                 "conversation_id": conversation_id,
                 "created_at": message.created_at.isoformat()
             }, 201
             
         except Exception as e:
-            print(f"Error saving message: {str(e)}")
+            print('='*80)
+            print(f'❌ ERROR saving message: {str(e)}')
+            print('='*80)
+            import traceback
+            traceback.print_exc()
             return {"error": f"Failed to save message: {str(e)}"}, 500
       
 
@@ -149,12 +232,15 @@ class CreateChat(Resource):
         """Create a conversation from frontend data"""
         try:
             data = request.get_json() or {}
-            print('Create chat data:', data)
+            print('='*80)
+            print('📞 CREATE CHAT REQUEST RECEIVED')
+            print('='*80)
+            print(f'📋 Request data: {json.dumps(data, indent=2)}')
             
             # Extract user ID from JWT token
             current_user = auth.current_user()
             trader_id = str(current_user.id)  # The authenticated user is the trader
-            print(f'Authenticated trader ID: {trader_id}')
+            print(f'👤 Authenticated trader ID: {trader_id}')
             
             # Extract frontend data
             conversation_id = data.get('conversationId')
@@ -164,9 +250,12 @@ class CreateChat(Resource):
             
             # We need the job ID to create the conversation
             job_id = data.get('job_id')  # From the job/project
+            homeowner_id_from_request = data.get('homeowner_id')  # From frontend (if provided)
             
-            print('jobId', job_id)
-            print('trader_id', trader_id)
+            print(f'📋 Request fields:')
+            print(f'   - job_id: {job_id}')
+            print(f'   - trader_id (from JWT): {trader_id}')
+            print(f'   - homeowner_id (from request): {homeowner_id_from_request}')
             
             # Validate required IDs (trader_id is now from JWT token)
             if not job_id:
@@ -179,26 +268,55 @@ class CreateChat(Resource):
             
             # Retrieve homeowner_id from the job/project
             try:
+                print(f'🔍 Looking up project with job_id: {job_id}')
                 project = ClientProject.objects(project_id=job_id, is_deleted=False).first()
+                
                 if not project:
+                    print(f'❌ ERROR: Project not found with job_id: {job_id}')
                     return {
                         "error": f"Project not found with jobId: {job_id}",
                         "jobId": job_id
                     }, 404
                 
-                print('show me the project', project)
+                print(f'✅ Project found:')
+                print(f'   - project_id: {project.project_id}')
+                print(f'   - project.user_id: {project.user_id}')
+                print(f'   - project.user_id type: {type(project.user_id)}')
                 
                 homeowner_id = project.user_id
-                print('Retrieved homeowner_id from project:', homeowner_id)
+                
+                # Convert to string if it's an ObjectId
+                if homeowner_id:
+                    homeowner_id = str(homeowner_id)
+                
+                print(f'✅ Retrieved homeowner_id from project: {homeowner_id}')
+                
+                # Validate homeowner_id
+                if not homeowner_id:
+                    print(f'❌ ERROR: project.user_id is None or empty!')
+                    return {
+                        "error": "Project has no user_id (homeowner_id)",
+                        "jobId": job_id
+                    }, 500
+                
+                # Warn if frontend sent homeowner_id but it doesn't match
+                if homeowner_id_from_request and homeowner_id_from_request != homeowner_id:
+                    print(f'⚠️ WARNING: Frontend homeowner_id ({homeowner_id_from_request}) does not match project.user_id ({homeowner_id})')
+                    print(f'   Using project.user_id ({homeowner_id}) as source of truth')
                 
             except Exception as e:
-                print(f"Error retrieving project: {str(e)}")
+                print(f'❌ ERROR retrieving project: {str(e)}')
+                import traceback
+                traceback.print_exc()
                 return {
                     "error": f"Failed to retrieve project details: {str(e)}",
                     "jobId": job_id
                 }, 500
             
-            print(f"IDs: job_id={job_id}, homeowner_id={homeowner_id}, trader_id={trader_id}")
+            print(f'📊 Final IDs:')
+            print(f'   - job_id: {job_id}')
+            print(f'   - homeowner_id: {homeowner_id} (type: {type(homeowner_id)})')
+            print(f'   - trader_id: {trader_id} (type: {type(trader_id)})')
             
             # Check if conversation already exists
             existing_conversation = Conversation.objects(
@@ -208,15 +326,22 @@ class CreateChat(Resource):
             ).first()
             
             if existing_conversation:
-                print(f"Conversation already exists: {existing_conversation.conversation_id}")
+                print(f'✅ Conversation already exists: {existing_conversation.conversation_id}')
+                
+                # Verify participants exist
+                participants = ConversationParticipant.objects(conversation_id=existing_conversation.conversation_id)
+                print(f'📋 Existing participants: {participants.count()}')
+                for p in participants:
+                    print(f'   - user_id: {str(p.user_id)}, role: {p.role}')
+                
                 return {
                     "success": True,
                     "conversation": {
                         "id": existing_conversation.conversation_id,
                         "conversation_id": existing_conversation.conversation_id,
                         "job_id": existing_conversation.job_id,
-                        "homeowner_id": existing_conversation.homeowner_id,
-                        "trader_id": existing_conversation.trader_id,
+                        "homeowner_id": str(existing_conversation.homeowner_id),
+                        "trader_id": str(existing_conversation.trader_id),
                         "status": existing_conversation.status,
                         "createdAt": existing_conversation.created_at.isoformat(),
                         "message_count": existing_conversation.message_count
@@ -225,6 +350,7 @@ class CreateChat(Resource):
                 }, 200
             
             # Create new conversation
+            print(f'🆕 Creating new conversation...')
             conversation = Conversation(
                 job_id=job_id,
                 homeowner_id=homeowner_id,
@@ -234,32 +360,48 @@ class CreateChat(Resource):
                 status='open'
             )
             conversation.save()
-            print(f"Created conversation: {conversation.conversation_id}")
+            print(f'✅ Created conversation: {conversation.conversation_id}')
             
             # Create participant records
+            print(f'👥 Creating participants...')
+            
+            # Convert IDs to strings for consistency
+            homeowner_id_str = str(homeowner_id)
+            trader_id_str = str(trader_id)
+            
             homeowner_participant = ConversationParticipant(
                 conversation_id=conversation.conversation_id,
-                user_id=homeowner_id,
+                user_id=homeowner_id_str,
                 role='homeowner'
             )
             homeowner_participant.save()
+            print(f'✅ Created homeowner participant: user_id={homeowner_id_str}')
             
             trader_participant = ConversationParticipant(
                 conversation_id=conversation.conversation_id,
-                user_id=trader_id,
+                user_id=trader_id_str,
                 role='trader'
             )
             trader_participant.save()
+            print(f'✅ Created trader participant: user_id={trader_id_str}')
             
-            print(f"Created participants for conversation: {conversation.conversation_id}")
+            # Verify participants were created
+            verify_participants = ConversationParticipant.objects(conversation_id=conversation.conversation_id)
+            print(f'✅ Verification: {verify_participants.count()} participants found')
+            for p in verify_participants:
+                print(f'   - user_id: {str(p.user_id)} (type: {type(p.user_id)}), role: {p.role}')
+            
+            print('='*80)
+            print('✅ CONVERSATION CREATION SUCCESSFUL')
+            print('='*80)
             
             return {
                 "success": True,
                 "conversation": {
                     "id": conversation.conversation_id,
                     "conversation_id": conversation.conversation_id,
-                    "homeowner_id": conversation.homeowner_id,
-                    "trader_id": conversation.trader_id,
+                    "homeowner_id": str(conversation.homeowner_id),
+                    "trader_id": str(conversation.trader_id),
                     "job_id": conversation.job_id,
                     "status": conversation.status,
                     "createdAt": conversation.created_at.isoformat(),
@@ -269,7 +411,11 @@ class CreateChat(Resource):
             }, 201
             
         except Exception as e:
-            print(f"Error creating chat from frontend: {str(e)}")
+            print('='*80)
+            print(f'❌ ERROR creating chat: {str(e)}')
+            print('='*80)
+            import traceback
+            traceback.print_exc()
             return {"error": f"Failed to create chat: {str(e)}"}, 500
 
 

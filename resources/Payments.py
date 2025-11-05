@@ -1,6 +1,7 @@
 from flask_restful import Resource
 from flask import request
 import stripe, os
+import json
 from models.application import Application
 from datetime import datetime
 
@@ -100,6 +101,97 @@ class PayWithStripe(Resource):
         except Exception as e:
             print('show me the error', e)
             return {"error": str(e)}, 400
+
+
+class CreateFreeApplication(Resource):
+    """
+    Create an application without Stripe payment.
+    Used when payment functionality is disabled.
+    Creates application with status 'paid' so it works with existing checks.
+    """
+    def post(self):
+        try:
+            data = request.get_json(force=True) or {}
+            
+            job_id = data.get("job_id")
+            user_id = data.get("user_id")
+            application_text = data.get("application_text", "")
+            
+            if not job_id:
+                return {"error": "job_id is required"}, 400
+            if not user_id:
+                return {"error": "user_id is required"}, 400
+            
+            print('='*80)
+            print('🆓 CREATE FREE APPLICATION REQUEST')
+            print('='*80)
+            print(f'📋 job_id: {job_id}')
+            print(f'👤 trader_id (user_id): {user_id}')
+            print(f'💬 application_text: {application_text[:100] if application_text else "None"}...')
+            
+            # Check if application already exists (paid or initiated)
+            existing_app = Application.objects(
+                job_id=job_id,
+                trader_id=user_id
+            ).first()
+            
+            if existing_app:
+                if existing_app.status == "paid":
+                    print(f'✅ Application already exists and is paid: {existing_app.application_id}')
+                    return {
+                        "success": True,
+                        "message": "Application already exists",
+                        "applicationId": str(existing_app.application_id),
+                        "status": existing_app.status
+                    }, 200
+                else:
+                    # Update existing application to paid status
+                    print(f'📝 Updating existing application ({existing_app.status}) to paid')
+                    existing_app.status = "paid"
+                    existing_app.application_message = application_text
+                    existing_app.stripe_pi_id = "free_application_no_payment"
+                    existing_app.amount = 0
+                    existing_app.currency = "gbp"
+                    existing_app.save()
+                    print(f'✅ Updated application to paid: {existing_app.application_id}')
+                    
+                    return {
+                        "success": True,
+                        "message": "Application updated to paid",
+                        "applicationId": str(existing_app.application_id),
+                        "status": existing_app.status
+                    }, 200
+            
+            # Create new free application
+            print(f'🆕 Creating new free application...')
+            app = Application(
+                job_id=job_id,
+                trader_id=user_id,
+                stripe_pi_id="free_application_no_payment",  # Placeholder for required field
+                amount=0,  # Free application
+                currency="gbp",
+                status="paid",  # Set as paid so it works with existing checks
+                application_message=application_text
+            )
+            app.save()
+            
+            print(f'✅ Created free application: {app.application_id}')
+            print('='*80)
+            
+            return {
+                "success": True,
+                "message": "Free application created successfully",
+                "applicationId": str(app.application_id),
+                "status": app.status
+            }, 201
+            
+        except Exception as e:
+            print('='*80)
+            print(f'❌ ERROR creating free application: {str(e)}')
+            print('='*80)
+            import traceback
+            traceback.print_exc()
+            return {"error": f"Failed to create free application: {str(e)}"}, 500
 
 
 class CheckPaymentStatus(Resource):
