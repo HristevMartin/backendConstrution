@@ -173,7 +173,7 @@ class Logout(Resource):
             if not user:
                 return {"message": "Invalid user session"}, 401
 
-            # Optional: read token for logging/metrics
+            # Optiosnal: read token for logging/metrics
             token = _get_token_from_request()
 
             resp = make_response(jsonify({"message": "Logged out successfully"}), 200)
