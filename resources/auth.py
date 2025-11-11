@@ -178,7 +178,7 @@ class Logout(Resource):
 
             resp = make_response(jsonify({"message": "Logged out successfully"}), 200)
             
-            # Use dynamic cookie configuration
+            # Use dynamicc cookie configuration
             cookie_config = Config.get_cookie_config()
 
             cookie_params = {
