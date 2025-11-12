@@ -25,6 +25,7 @@ ALLOWED_CATEGORIES = [
     "Heating & Cooling",
     "Flooring",
     "Cleaning",
+    "Bricklaying",
     "Removals",
     "Handyman",
     "Mechanic",
