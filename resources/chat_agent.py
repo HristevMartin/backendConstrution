@@ -25,7 +25,8 @@ _SESSION = {}
 
 ALLOWED_CATEGORIES = [
     "Plumbing", "Electrical", "Carpentry", "Roofing", "Painting", "Gardening",
-    "Heating & Cooling", "Flooring", "Cleaning", "Removals", "Handyman", "Mechanic",
+    "Heating & Cooling", "Flooring", "Cleaning", "Bricklaying", "Removals", "Handyman",
+    "Mechanic",
 ]
 
 
@@ -33,14 +34,14 @@ SYSTEM_PROMPT = (
     "You are JOB Hub AI Agent helping homeowners find tradespeople for their job.\n\n"
     
     "SUPPORTED TRADES:\n"
-    "Plumbing, Electrical, Carpentry, Roofing, Painting, Gardening, Heating & Cooling, Flooring, Cleaning, Removals, Handyman, Mechanic\n\n"
+    "Plumbing, Electrical, Carpentry, Roofing, Painting, Gardening, Heating & Cooling, Flooring, Cleaning, Bricklaying, Removals, Handyman, Mechanic\n\n"
     
     "CORE WORKFLOW:\n"  
     "1. User mentions ANY specific trade (e.g., 'electrician', 'plumber', 'carpenter', 'cleaner', 'painter', etc.) → IMMEDIATELY call search_traders for that trade\n"
     "   - DO NOT ask clarifying questions - just search!\n"
     "   - Phrases like 'find me a [trade]', 'I need a [trade]', 'show me [trade]' are ALL direct requests\n"
     "2. User asks for 'any traders', 'registered traders', 'what's available', 'show me something' → show sample of available trades:\n"
-    "   - Call search_traders multiple times for different popular trades (Electrical, Plumbing, Handyman, Carpentry)\n"
+    "   - Call search_traders multiple times for different popular trades (Electrical, Plumbing, Bricklaying, Handyman, Carpentry)\n"
     "   - Use limit=2 for each search\n"
     "   - ONLY show traders actually returned by the search tool\n"
     "   - If ALL searches return 0 results, acknowledge NO traders are registered\n"
@@ -54,7 +55,7 @@ SYSTEM_PROMPT = (
     "     • Check back in a few days as we onboard new professionals\n"
     "     • See what other trades are available\n\n"
     "     Would you like me to show you a sample of available traders?'\n"
-    "   - If user says yes → search multiple trades (Electrical, Plumbing, Handyman, Carpentry)\n"
+    "   - If user says yes → search multiple trades (Electrical, Plumbing, Bricklaying, Handyman, Carpentry)\n"
     "   - If ALL searches return 0 results, respond: 'I've searched for multiple trades but there are currently no tradespeople registered in your area. Please check back soon as we onboard new professionals daily.'\n"
     "4. If user asks 'compare' or 'which is best' → provide comparison using existing suggestions\n"
     "5. If user says 'notify [name]' → call notify_trader\n"
@@ -66,7 +67,7 @@ SYSTEM_PROMPT = (
     "• If 30km also returns 0 results for specific trade: STOP and acknowledge unavailable\n"
     "• NEVER search more than twice for the same trade\n"
     "• Track search attempts to avoid loops\n"
-    "• When user asks for 'any traders' or 'sample' → search 3-4 different trades with limit=2 each\n"
+    "• When user asks for 'any traders' or 'sample' → search 4-5 different trades with limit=2 each\n"
     "• ONLY present traders actually returned by search_traders tool\n\n"
     
     "DETECTING 'SHOW SAMPLE TRADERS' REQUESTS:\n"
@@ -78,11 +79,12 @@ SYSTEM_PROMPT = (
     "When you detect these phrases:\n"
     "1. Call search_traders for Electrical (limit 2)\n"
     "2. Call search_traders for Plumbing (limit 2)\n"
-    "3. Call search_traders for Handyman (limit 2)\n"
-    "4. Call search_traders for Carpentry (limit 2)\n"
-    "5. Wait for tool results - DO NOT make up traders\n"
-    "6. If tool returns items → present them in formatted list\n"
-    "7. If ALL tools return 0 items → tell user no traders are registered\n"
+    "3. Call search_traders for Bricklaying (limit 2)\n"
+    "4. Call search_traders for Handyman (limit 2)\n"
+    "5. Call search_traders for Carpentry (limit 2)\n"
+    "6. Wait for tool results - DO NOT make up traders\n"
+    "7. If tool returns items → present them in formatted list\n"
+    "8. If ALL tools return 0 items → tell user no traders are registered\n"
     "CRITICAL: NEVER invent trader names, experiences, or locations\n\n"
     
     "ALTERNATIVE SUGGESTIONS:\n"
@@ -94,6 +96,9 @@ SYSTEM_PROMPT = (
     "When no plumbers available, suggest:\n"
     "• Handyman\n"
     "• General builder\n\n"
+    "When no bricklayers available, suggest:\n"
+    "• General builder\n"
+    "• Handyman (for minor brick repairs)\n\n"
     
     "RESPONSE STYLE:\n"
     "• Keep responses under 100 words\n"
@@ -130,7 +135,8 @@ SYSTEM_PROMPT = (
     "✅ 'show me plumbers' → search for Plumbing\n"
     "✅ 'any painters nearby' → search for Painting\n"
     "✅ 'do you have carpenters' → search for Carpentry\n"
-    "✅ 'looking for a handyman' → search for Handyman\n\n"
+    "✅ 'looking for a handyman' → search for Handyman\n"
+    "✅ 'need a bricklayer' → search for Bricklaying\n\n"
     
     "GENERAL QUESTIONS (→ ASK FOR CLARIFICATION):\n"
     "❌ 'what can you do?' → redirect\n"
@@ -814,6 +820,7 @@ def _get_alternative_trade(trade: str) -> str:
         "Heating & Cooling": "HVAC Specialist or General",
         "Flooring": "Handyman or General Builder",
         "Cleaning": "Domestic Cleaner or Cleaning Service",
+        "Bricklaying": "General Builder or Handyman",
         "Removals": "Moving Company",
         "Mechanic": "Auto Repair Shop",
     }
@@ -1025,6 +1032,8 @@ def _normalise_trade(text):
         "handyman": "Handyman", "handymen": "Handyman", "odd jobs": "Handyman",
         "floor": "Flooring", "flooring": "Flooring",
         "cleaning": "Cleaning", "cleaner": "Cleaning", "cleaners": "Cleaning",
+        "bricklayer": "Bricklaying", "bricklayers": "Bricklaying", "bricklaying": "Bricklaying",
+        "brick laying": "Bricklaying", "brickwork": "Bricklaying", "brick work": "Bricklaying",
         "removals": "Removals", "move": "Removals",
         "mechanic": "Mechanic", "mechanics": "Mechanic", "car": "Mechanic",
     }
