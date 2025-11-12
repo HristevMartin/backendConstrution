@@ -27,9 +27,8 @@ class Config:
     
     # Email Configuration (SendGrid)
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY', '')
-    print('show me the sendgrid api key', SENDGRID_API_KEY[:15])
     SENDGRID_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@find-tradespeople.com')
-    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'contact@find-tradespeople.com')
+    ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'virtoala0@gmail.com')
     COMPANY_NAME = os.getenv('COMPANY_NAME', 'Find Tradespeople')
     
     # Application Configuration

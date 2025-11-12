@@ -22,7 +22,7 @@ class EmailService:
         print(f"📧 From email: {Config.SENDGRID_FROM_EMAIL}")
         self.sg = SendGridAPIClient(api_key=Config.SENDGRID_API_KEY)
         self.from_email = Config.SENDGRID_FROM_EMAIL
-        self.admin_email = "hristevmartin96@gmail.com"
+        self.admin_email = Config.ADMIN_EMAIL
         self.company_name = Config.COMPANY_NAME
         
     def test_sendgrid_connection(self):
