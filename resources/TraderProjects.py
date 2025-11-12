@@ -142,18 +142,6 @@ class SaveTraderProject(Resource):
             form_data['projectImages'] = image_urls
             form_data['certificationImages'] = certification_urls
             
-            print('Final form data:', {
-                'project_id': project_id,
-                'user_id': user_id,
-                'name': form_data.get('name'),
-                'email': form_data.get('email'),
-                'primaryTrade': form_data.get('primaryTrade'),
-                'city': form_data.get('city'),
-                'image_count': len(image_urls),
-                'certification_image_count': len(certification_urls)
-            })
-            
-            # Save trader registration data to database using the TraderProject model
             try:
                 # Create TraderProject object with trader registration data
                 trader_project = TraderProject(
@@ -177,8 +165,6 @@ class SaveTraderProject(Resource):
                 )
                 
                 trader_project.save()
-                
-                print(f'Trader registration saved to database successfully with ID: {project_id}')
                 
                 # Send confirmation email to trader
                 try:
@@ -212,6 +198,8 @@ class SaveTraderProject(Resource):
                         'marketingConsent': form_data.get('marketingConsent')
                     }
                     
+                    print('its being called in here', admin_email_data)
+
                     email_service.send_trader_admin_notification_email(admin_email_data)
                     
                 except Exception as email_error:
