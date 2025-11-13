@@ -430,51 +430,58 @@ class GetAllChats(Resource):
             user_id = authenticated_user_id
             
             def get_homeowner_counterparty_info(homeowner_id, job_id):
-                """Get homeowner info from ClientProject when viewer is trader"""
                 try:
-                    # Fetch the ClientProject using job_id to get homeowner details
                     project = ClientProject.objects(project_id=job_id, is_deleted=False).first()
-                    if project and project.first_name:
+                    if project and project.first_name and project.phone:
                         name = project.first_name
                         job_title = project.job_title if project.job_title else "Unknown"
-                        print('show me the homeowner project', project)
+                        phone = project.phone if project.phone else None
+                        project_id = project.project_id
                     else:
                         name = "Unknown"
                         job_title = "Unknown"
-                    
-                    return {
+                        phone = None
+                        project_id = None
+                    res = {
                         "id": homeowner_id,
                         "name": name,
                         "job_title": job_title,
-                        "avatar_url": None
+                        "avatar_url": None,
+                        "phone": phone,
+                        "project_id": project_id
                     }
+                    print('show me the res', res)
+                    return res
                 except Exception as e:
                     print(f"Error fetching homeowner info for job {job_id}: {str(e)}")
                     return {
                         "id": homeowner_id,
                         "name": "Unknown",
                         "job_title": "Unknown",
-                        "avatar_url": None
+                        "avatar_url": None,
+                        "phone": None,
+                        "project_id": None
                     }
             
-            def get_trader_counterparty_info(trader_id):
-                """Get trader info from TraderProject when viewer is homeowner"""
+            def get_trader_counterparty_info(trader_id, job_id):
                 try:
-                    # Fetch the TraderProject using trader_id to get trader details
-                    trader_project = TraderProject.objects(userId=trader_id).first()
-                    if trader_project and trader_project.name:
-                        name = trader_project.name
-                        job_title = trader_project.primaryTrade if trader_project.primaryTrade else "Unknown"
-                        print('show me the trader project', trader_project)
+                    trader = TraderProject.objects(userId=trader_id).first()
+                    if trader:
+                        name = trader.name if trader.name else "Unknown"
+                        job_title = trader.primaryTrade if trader.primaryTrade else "Unknown"
+                        phone = trader.phone if trader.phone else None
+                        print('show me the trader project', trader)
                     else:
                         name = "Unknown"
                         job_title = "Unknown"
+                        phone = None
                     
                     return {
                         "id": trader_id,
                         "name": name,
                         "job_title": job_title,
-                        "avatar_url": None
+                        "avatar_url": None,
+                        "phone": phone
                     }
                 except Exception as e:
                     print(f"Error fetching trader info for trader {trader_id}: {str(e)}")
@@ -482,19 +489,17 @@ class GetAllChats(Resource):
                         "id": trader_id,
                         "name": "Unknown",
                         "job_title": "Unknown",
-                        "avatar_url": None
+                        "avatar_url": None,
+                        "phone": None
                     }
             
-            # Get conversations where user is either homeowner or trader
             homeowner_chats = Conversation.objects(homeowner_id=user_id)
             trader_chats = Conversation.objects(trader_id=user_id)
             
-            # Combine and format the results
             all_chats = []
             
-            # Add homeowner conversations (viewer is homeowner, counterparty is trader)
             for chat in homeowner_chats:
-                counterparty_info = get_trader_counterparty_info(chat.trader_id)
+                counterparty_info = get_trader_counterparty_info(chat.trader_id, chat.job_id)
                 all_chats.append({
                     "conversation_id": chat.conversation_id,
                     "job_id": chat.job_id,
@@ -506,7 +511,6 @@ class GetAllChats(Resource):
                     "counterparty": counterparty_info
                 })
             
-            # Add trader conversations (viewer is trader, counterparty is homeowner)
             for chat in trader_chats:
                 counterparty_info = get_homeowner_counterparty_info(chat.homeowner_id, chat.job_id)
                 all_chats.append({
