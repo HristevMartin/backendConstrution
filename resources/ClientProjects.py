@@ -209,7 +209,7 @@ class ClientProjects(Resource):
                     if admin_email_sent:
                         print("Admin notification email sent successfully")
                     else:
-                        print("Failed to send admin notification email")
+                        print("Failesd to send admin notification email")
                         
                 except Exception as email_error:
                     print(f"Error sending emails: {str(email_error)}")
