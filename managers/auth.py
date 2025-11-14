@@ -9,7 +9,7 @@ from flask import request, g
 
 from models.user import Users
 
-#s
+#ss
 jwt_secret_key = os.getenv("SECRET_KEY")
 jwt_secret_key = "dsadsadsadasdasdasdsadsa"
 JWT_ALGS   = ["HS256"]
