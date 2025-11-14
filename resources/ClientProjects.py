@@ -14,6 +14,7 @@ from models.TraderProject import TraderProject
 from services.recommendation_engine import ProjectRecommendationEngine
 from services.recommendation_engine import UserService
 from models.UserTracker import ClientUserCompletedJobs
+from tasks import simple_log_task
 
 
 def fetch_nuts_from_postcode(postcode):
@@ -165,6 +166,7 @@ class ClientProjects(Resource):
  
             try:
                 project = ClientProject.create_project(form_data, image_urls)
+
                 project.save()
 
                 client_tracker = ClientUserCompletedJobs(
@@ -184,11 +186,6 @@ class ClientProjects(Resource):
                 
                 client_tracker.save()
 
-                print('its passing here')
-                
-                print(f'Project saved to database successfully with ID: {project.project_id}')
-                
-                # Send confirmation emails
                 try:
                     email_service = EmailService()
                     project_dict = project.to_dict()
@@ -222,7 +219,8 @@ class ClientProjects(Resource):
                         "email_error": str(email_error)
                     }
                 
-                # Return the saved project data
+                simple_log_task.delay(project.to_dict())
+
                 return {
                     "success": True,
                     "message": "Project created and saved successfully! Check your email for confirmation.",

@@ -31,3 +31,7 @@ set FLASK_ENV=dev
 
 ### Locally use the following step to start the mongoDB container(prerequisite is to have docker-compose and docker installed locally):
 4. Run MongoDB in a container: `docker-compose up -d`
+
+
+### Start celery worker
+celery -A celery_app.celery worker --loglevel=info --pool=solo
