@@ -39,7 +39,7 @@ from resources.client_projects_utils import CheckIfAnyJobIsPaid
 from resources.HomeOwnerVerification import HomeOwnerVerification
 from resources.auth import GoogleAuth
 from resources.job_applicants import GetApplicantsPerJob
-
+from resources.celery_test import CeleryTestResource
 
 routes = [
     (Register, "/travel/register"),
@@ -89,5 +89,6 @@ routes = [
     (StripeWebhookTest, "/api/payments/webhook-test"),
     (CheckIfAnyJobIsPaid, "/api/payments/check-if-any-job-is-paid/<job_id>"),
     (HomeOwnerVerification, "/api/homeowner/verify/user"),
-    (GetApplicantsPerJob, "/api/job-applicants/<job_id>")
+    (GetApplicantsPerJob, "/api/job-applicants/<job_id>"),
+    (CeleryTestResource, "/travel/celery-test"),
 ]

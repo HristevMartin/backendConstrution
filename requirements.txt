@@ -1,15 +1,22 @@
 altair==5.5.0
+amqp==5.3.1
 aniso8601==9.0.1
 annotated-types==0.7.0
 anyio==4.11.0
+async-timeout==5.0.1
 attrs==25.3.0
 bidict==0.23.1
+billiard==4.2.2
 black==24.8.0
 blinker==1.9.0
 cachetools==5.5.2
+celery==5.5.3
 certifi==2025.7.14
 charset-normalizer==3.4.2
 click==8.2.1
+click-didyoumean==0.3.1
+click-plugins==1.1.1.2
+click-repl==0.3.0
 colorama==0.4.6
 config==0.5.1
 coverage==7.6.12
@@ -58,6 +65,7 @@ jiter==0.11.0
 joblib==1.5.1
 jsonschema==4.25.0
 jsonschema-specifications==2025.4.1
+kombu==5.5.4
 MarkupSafe==3.0.2
 marshmallow==3.21.3
 mdurl==0.1.2
@@ -77,6 +85,7 @@ pillow==10.4.0
 platformdirs==4.2.2
 plotly==5.18.0
 pluggy==1.5.0
+prompt_toolkit==3.0.52
 proto-plus==1.26.1
 protobuf==4.25.8
 psycopg2-binary==2.9.10
@@ -99,6 +108,7 @@ python-engineio==4.7.1
 python-http-client==3.3.7
 python-socketio==5.8.0
 pytz==2025.2
+redis==7.0.1
 referencing==0.36.2
 requests==2.32.4
 requests-oauthlib==2.0.0
@@ -129,7 +139,9 @@ ua-parser-builtins==0.18.0.post1
 urllib3==2.5.0
 user-agents==2.2.0
 validators==0.35.0
+vine==5.1.0
 watchdog==6.0.0
+wcwidth==0.2.14
 Werkzeug==3.0.3
 wsproto==1.2.0
 WTForms==3.1.2

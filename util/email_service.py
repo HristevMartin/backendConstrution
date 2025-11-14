@@ -17,9 +17,6 @@ class EmailService:
             return
             
         self.enabled = True
-        print(f"🔑 API Key length: {len(Config.SENDGRID_API_KEY)}")
-        print(f"🔑 API Key starts with: {Config.SENDGRID_API_KEY[:10]}...")
-        print(f"📧 From email: {Config.SENDGRID_FROM_EMAIL}")
         self.sg = SendGridAPIClient(api_key=Config.SENDGRID_API_KEY)
         self.from_email = Config.SENDGRID_FROM_EMAIL
         self.admin_email = Config.ADMIN_EMAIL
@@ -627,4 +624,39 @@ class EmailService:
                 
         except Exception as e:
             print(f"📧 Error sending trader admin notification: {str(e)}")
+            return False
+            
+
+    def send_trader_new_project_email(self, trader_emails, template_data):
+        """
+        Send 'new project posted' notification to a list of traders.
+        `template_data` is what prepare_template_and_data(message) returns.
+        """
+        if not self.enabled:
+            print("📧 Email service disabled - trader new project emails not sent")
+            return False
+
+        subject = template_data["subject"]
+        text_body = template_data["text_body"]
+        html_body = template_data["html_body"]
+
+        try:
+            for email in trader_emails:
+                message = Mail(
+                    from_email=self.from_email,
+                    to_emails=email,
+                    subject=subject,
+                    html_content=html_body,
+                    plain_text_content=text_body,
+                )
+                response = self.sg.send(message)
+
+                if response.status_code not in [200, 201, 202]:
+                    print(f"Failed to send trader new project email to {email}. "
+                          f"Status: {response.status_code}")
+
+            print(f"Trader new project emails sent successfully to {trader_emails}")
+            return True
+        except Exception as e:
+            print(f"Error sending trader new project emails: {str(e)}")
             return False
