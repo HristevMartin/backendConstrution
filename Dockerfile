@@ -11,9 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn celery redis
 
 COPY . .
 
-COPY start.sh .
-RUN chmod +x start.sh
+COPY start_celery.sh .
+RUN chmod +x start_celery.sh
 
 EXPOSE 8080
 
-CMD ["./start.sh"]
+CMD ["./start_celery.sh"]
