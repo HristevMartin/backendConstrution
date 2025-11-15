@@ -40,6 +40,7 @@ from resources.HomeOwnerVerification import HomeOwnerVerification
 from resources.auth import GoogleAuth
 from resources.job_applicants import GetApplicantsPerJob
 from resources.celery_test import CeleryTestResource
+from resources.TraderProjects import GetTraderRoles
 
 routes = [
     (Register, "/travel/register"),
@@ -91,4 +92,5 @@ routes = [
     (HomeOwnerVerification, "/api/homeowner/verify/user"),
     (GetApplicantsPerJob, "/api/job-applicants/<job_id>"),
     (CeleryTestResource, "/travel/celery-test"),
+    (GetTraderRoles, "/travel/get-trader-roles/<user_id>"),
 ]

@@ -455,3 +455,21 @@ class GetTraderProject(Resource):
         except Exception as e:
             print(f"Error updating trader project: {str(e)}")
             return {"error": f"Failed to update trader project: {str(e)}"}, 500
+
+
+class GetTraderRoles(Resource):
+    def get(self, user_id):
+        try:
+            project = TraderProject.objects(userId=user_id).first()
+            
+            if not project:
+                return {"success": True, "project": None, "message": "No project found for this user"}, 200
+            
+            primary_trade = project.primaryTrade
+            print('show me the primary_trade', primary_trade)
+
+
+            return {"success": True, "specialty": primary_trade}, 200
+        except Exception as e:
+            print(f"Error fetching trader specialties: {str(e)}")
+            return {"error": f"Failed to fetch trader specialties: {str(e)}"}, 500
