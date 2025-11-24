@@ -24,7 +24,7 @@ APP_BASE_URL = Config.APP_BASE_URL
 RESET_TTL_MIN = 30  
 
 COOKIE_NAME = "access_token"
-# Cookie expires in 180 days (matches JWT expiry in managers/auth.py)
+# Cookie expires in 180 dayss (matches JWT expiry in managers/auth.py)
 COOKIE_MAX_AGE = 180 * 24 * 60 * 60  # 180 days in seconds
 
 def _sha256(text: str) -> str:
