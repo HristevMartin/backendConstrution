@@ -15,9 +15,9 @@ class Config:
     
     # MongoDB Settings
     MONGODB_SETTINGS = {
-        'db': os.getenv('MONGO_DB', 'travelDB'),
+        'db': os.getenv('MONGO_DB', 'tradeDB'),
         'host': os.getenv('DB_HOST', 'localhost'),
-        'port': int(os.getenv('DB_PORT', '27017')),
+        'port': int(os.getenv('DB_PORT', '27018')),
     } 
 
     # GCS Configuration
@@ -47,11 +47,9 @@ class Config:
             from urllib.parse import urlparse
             parsed = urlparse(FRONTEND_BASE_URL)
             host = (parsed.hostname or "").strip()
-            # Use .domain.com format to support both www and non-www
             if host:
-                # Remove www. prefix if present, then add leading dot
                 base_domain = host.replace('www.', '')
-                COOKIE_DOMAIN = f'.{base_domain}'  # e.g., .find-tradespeople.com
+                COOKIE_DOMAIN = f'.{base_domain}'
             else:
                 COOKIE_DOMAIN = None
         except Exception:
@@ -59,7 +57,6 @@ class Config:
     else:
         COOKIE_DOMAIN = None
 
-    # Cookie Security Settings
     COOKIE_SECURE = IS_PRODUCTION
     COOKIE_HTTPONLY = True
     COOKIE_SAMESITE = 'None' if IS_PRODUCTION else 'Lax'
@@ -74,7 +71,6 @@ class Config:
             'samesite': cls.COOKIE_SAMESITE,
             'path': cls.COOKIE_PATH
         }
-        # Only add domain if it's explicitly set
         if cls.COOKIE_DOMAIN:
             config['domain'] = cls.COOKIE_DOMAIN
         return config

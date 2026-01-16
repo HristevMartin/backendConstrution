@@ -79,7 +79,7 @@ class ClientProjects(Resource):
             
 
             form_data['email'] = user_email
-            # Extract userId from form data (sent from frontend auth)
+
             user_id = form_data.get('userId')
             if not user_id:
                 return {"error": "userId is required"}, 400
@@ -190,10 +190,8 @@ class ClientProjects(Resource):
                     email_service = EmailService()
                     project_dict = project.to_dict()
                     
-                    # Send confirmation email to client
                     client_email_sent = email_service.send_project_confirmation_email(project_dict)
                     
-                    # Send notification email to admin/team
                     admin_email_sent = email_service.send_admin_notification_email(project_dict)
                     
                     email_status = {

@@ -4,7 +4,7 @@ from mongoengine import connect
 
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_PORT = int(os.getenv('DB_PORT', '27017'))
+DB_PORT = int(os.getenv('DB_PORT', '27018'))
 MONGO_DB = os.getenv('MONGO_DB', 'travelDB')
 
 print("=" * 50)
