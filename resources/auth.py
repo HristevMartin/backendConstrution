@@ -296,7 +296,6 @@ class GetSession(Resource):
             
             return response, 200
         except Exception as e:
-            print(f"❌ Failed to get session: {str(e)}")
             import traceback
             traceback.print_exc()
             return {"authenticated": False, "error": "Failed to get session"}, 500
@@ -309,10 +308,6 @@ class GoogleAuth(Resource):
             google_token = request.json.get('credential')
             role_from_request = request.json.get('role')
             
-            print(f"🔍 DEBUG: role_from_request = {role_from_request}")
-            print(f"🔍 DEBUG: request.json = {request.json}")
-            
-            # Verify token with Google
             idinfo = id_token.verify_oauth2_token(
                 google_token, 
                 google_requests.Request(), 
@@ -324,35 +319,23 @@ class GoogleAuth(Resource):
             name = idinfo.get('name', '')
             email_verified = idinfo.get('email_verified', False)
             
-            print(f"🔍 DEBUG: Checking for existing user with email: {email}")
             existing_user = Users.objects(email=email).first()
-            print(f"🔍 DEBUG: existing_user = {existing_user}")
             
             if existing_user:
-                # Check if trying to use Google for email/password account
                 if existing_user.auth_provider == 'email':
                     return {
                         "message": "This email is registered with a password. Please sign in using your email and password above."
                     }, 400
                 
-                # Login existing Google user
                 user_id = str(existing_user.id)
                 user_role = existing_user.role[0] if isinstance(existing_user.role, list) else existing_user.role
-                print(f"✅ Logging in existing user: {user_id}")
                 
             else:
-                # NEW USER
-                print(f"🔍 DEBUG: New user detected. role_from_request = {role_from_request}")
-                
                 if not role_from_request:
-                    # NO ROLE PROVIDED - BLOCK REGISTRATION
-                    print(f"❌ BLOCKING: No role provided for new user")
                     return {
                         "message": "You don't have an account yet. Please register first:\n• Homeowners: Click 'Post a Job'\n• Tradespeople: Click 'Join as a Tradesperson'"
                     }, 400
                 
-                # Role provided - create user
-                print(f"✅ Creating new user with role: {role_from_request}")
                 new_user = Users(
                     email=email,
                     google_id=google_id,
@@ -366,10 +349,8 @@ class GoogleAuth(Resource):
                 user_id = str(new_user.id)
                 user_role = role_from_request
             
-            # Generate JWT token
             token = AuthManager.encode_token(user_id, user_role)
             
-            # Create response with cookie
             resp = make_response(jsonify({
                 "id": user_id,
                 "role": user_role
@@ -387,10 +368,8 @@ class GoogleAuth(Resource):
             return resp
             
         except ValueError as e:
-            print(f"❌ ValueError: {str(e)}")
             return {"message": "Invalid Google token"}, 401
         except Exception as e:
-            print(f"❌ Exception: {str(e)}")
             import traceback
             traceback.print_exc()
             return {"message": str(e)}, 500

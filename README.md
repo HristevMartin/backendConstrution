@@ -22,6 +22,7 @@ set STRIPE_SECRET_KEY=sample
 set OPENAI_API_KEY=sample
 set SENDGRID_API_KEY=sample
 set FLASK_ENV=dev
+set GOOGLE_CLIENT_ID=ddsasd
 ```
 
 ## Setup and Installation
